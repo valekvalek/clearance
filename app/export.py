@@ -36,6 +36,14 @@ SOURCING_COLUMNS = [
 ]
 SOURCING_W = {13: 40, 14: 28, 15: 20, 16: 14, 17: 24, 18: 55}
 
+# Колонки ТН ВЭД добавляются В КОНЦЕ (после sourcing, если он есть) — чтобы
+# не сдвигать индексы существующих колонок (DESC_COL, CHINA_URL_COL, COL_W,
+# SOURCING_W завязаны на фиксированные номера).
+TNVED_COLUMNS = [
+    "Код ТН ВЭД", "Расшифровка ТН ВЭД", "Уверенность", "Проверить вручную",
+]
+TNVED_REVIEW_FILL = PatternFill(start_color="FFFCE8B2", end_color="FFFCE8B2", fill_type="solid")
+
 
 # ----------------------------------------------------------- экспорт (по образцу)
 HEADER_FILL = PatternFill(start_color="FFCFE2F3", end_color="FFCFE2F3", fill_type="solid")
@@ -47,6 +55,7 @@ CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
 COL_W = {1: 17.71, 2: 19, 3: 13, 4: 13, 5: 13, 6: 14.71, 7: 14.29, 8: 13,
          9: 16.43, 10: 13, 11: 29.57, 12: 37}
 _FORMULA_START = ("=", "+", "-", "@", "\t", "\r", "\n")
+_CONFIDENCE_RU = {"high": "Высокая", "medium": "Средняя", "low": "Низкая"}
 HEADER_ROW = 2   # строка 1 — номера колонок, строка 2 — заголовки, данные с 3-й
 DATA_START = 3
 
@@ -97,7 +106,8 @@ def build_workbook(items, rates, with_sourcing=False, embed_images=True, warning
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Result"
-    columns = OUTPUT_COLUMNS + (SOURCING_COLUMNS if with_sourcing else [])
+    columns = OUTPUT_COLUMNS + (SOURCING_COLUMNS if with_sourcing else []) + TNVED_COLUMNS
+    tnved_col_start = len(OUTPUT_COLUMNS) + (len(SOURCING_COLUMNS) if with_sourcing else 0) + 1
     ncols = len(columns)
 
     # строка 1 — номера колонок (как в образце)
@@ -147,6 +157,13 @@ def build_workbook(items, rates, with_sourcing=False, embed_images=True, warning
                 s.get("price_cn", ""), s.get("moq", ""),
                 s.get("pay", ""), sourcing.links_text(s.get("links", {})),
             ]
+        needs_review = bool(it.get("tnved_needs_review"))
+        values += [
+            it.get("tnved_code") or "",
+            it.get("tnved_description") or "",
+            _CONFIDENCE_RU.get(it.get("tnved_confidence"), ""),
+            "Да" if needs_review else "",
+        ]
         for ci, v in enumerate(values, 1):
             c = ws.cell(r, ci, v)
             if isinstance(v, str) and v[:1] in _FORMULA_START:
@@ -162,6 +179,8 @@ def build_workbook(items, rates, with_sourcing=False, embed_images=True, warning
             else:
                 c.font = DATA_FONT
             c.alignment = CENTER
+            if needs_review and ci >= tnved_col_start:
+                c.fill = TNVED_REVIEW_FILL
         ws.row_dimensions[r].height = 43.35
 
     # высоты и ширины по образцу

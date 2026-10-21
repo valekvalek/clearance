@@ -19,6 +19,7 @@ import export
 import currency
 import activity
 import ai_client
+import tnved_classifier
 from report import Report
 
 logger = logging.getLogger(__name__)
@@ -296,6 +297,24 @@ def run_job(job_id, datas, names, filename, do_sourcing=False, web_search=True, 
             set_job(job_id, status="sourcing", current=0,
                     message="Поиск на китайских площадках...")
             enrich.source_items(items, progress=_progress(job_id))
+        _check_deadline(started)
+        _check_cancelled(job_id)
+        set_job(job_id, status="enriching", message="Определяю коды ТН ВЭД...")
+        try:
+            codes = tnved_classifier.classify_batch([
+                {"product_name": it["name_ru"] or it["name_original"] or "",
+                 "description": it.get("description")}
+                for it in items
+            ])
+            for it, cl in zip(items, codes):
+                it["tnved_code"] = cl["code"]
+                it["tnved_description"] = cl["description"]
+                it["tnved_confidence"] = cl["confidence"]
+                it["tnved_needs_review"] = cl["needs_review"]
+        except Exception as e:
+            logging.getLogger("jobs").warning("tnved classify_batch failed: %s", e)
+            for it in items:
+                it.setdefault("tnved_needs_review", True)
         _check_deadline(started)
         _check_cancelled(job_id)
         warnings = report.items
