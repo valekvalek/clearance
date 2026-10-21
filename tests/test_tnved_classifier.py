@@ -72,6 +72,33 @@ def test_fts_candidates_finds_plural_form(monkeypatch):
     assert any(c["code"] == "6101209000" for c in cands)
 
 
+def test_material_does_not_crowd_out_name_candidates(monkeypatch):
+    """Регрессия: редкое специфичное слово материала не должно вытеснять из
+    топ-N кандидатов, найденных по самому названию товара (bm25 ранжирует
+    более редкие термины выше — без защиты материал "побеждал" название)."""
+    path = _fixture(monkeypatch)
+    conn = sqlite3.connect(path)
+    # добавляем много "шумовых" кодов, которые совпадают с материалом, но
+    # никак не связаны с светильником по смыслу — имитация реальной базы,
+    # где "нержавеющая сталь" даёт десятки совпадений в металлургических главах
+    noise = [
+        (f"72071111{i:02d}", f"прокат из нержавеющей стали вид {i}",
+         "72", "СТАЛЬ", "7207", "ПОЛУФАБРИКАТЫ ИЗ СТАЛИ", "2017-01-01")
+        for i in range(20)
+    ]
+    conn.executemany("INSERT INTO tnved_codes VALUES (?,?,?,?,?,?,?)", noise)
+    conn.executemany(
+        "INSERT INTO tnved_fts(code,name,group_name,heading_name) VALUES (?,?,?,?)",
+        [(c[0], c[1], c[3], c[5]) for c in noise])
+    conn.commit()
+    conn.close()
+
+    conn = tc._connect()
+    cands = tc._candidates_with_material(conn, "светодиодный светильник", "нержавеющая сталь")
+    assert any(c["code"] == "9405420012" for c in cands), (
+        "кандидат по названию (светильник) не должен быть вытеснен шумом по материалу")
+
+
 def test_fts_candidates_uses_material_hint(monkeypatch):
     """Материал передаётся в текст FTS-поиска вместе с названием (см.
     classify_batch: search_text = f"{name} {material}") — проверяем на

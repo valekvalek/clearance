@@ -107,6 +107,30 @@ def _fts_candidates(conn, query: str, limit: int = TOP_K) -> list[dict]:
     ]
 
 
+def _candidates_with_material(conn, name: str, material: str | None,
+                              limit: int = TOP_K) -> list[dict]:
+    """Кандидаты по названию + (опционально) по названию+материалу, слитые
+    так, чтобы материал мог ТОЛЬКО добавить кандидатов, но не мог вытеснить
+    найденные по названию. Раньше материал подмешивался В ОДИН bm25-запрос с
+    названием — редкое специфичное слово материала (например, "нержавеющая
+    сталь") ранжировалось выше общеупотребительного "светильник" и вытесняло
+    из топ-15 все реальные кандидаты по освещению в пользу кандидатов по
+    металлопрокату. Раздельный поиск + объединение с приоритетом названия
+    устраняет это, сохраняя пользу материала (находит коды, которые по
+    одному названию не находятся, см. test_fts_candidates_uses_material_hint)."""
+    by_name = _fts_candidates(conn, name, limit=limit)
+    if not material:
+        return by_name
+    seen = {c["code"] for c in by_name}
+    by_combo = _fts_candidates(conn, f"{name} {material}", limit=limit)
+    merged = list(by_name)
+    for c in by_combo:
+        if c["code"] not in seen and len(merged) < limit:
+            merged.append(c)
+            seen.add(c["code"])
+    return merged
+
+
 def _code_exists(conn, code: str) -> str | None:
     row = conn.execute("SELECT name FROM tnved_codes WHERE code = ?", (code,)).fetchone()
     return row[0] if row else None
@@ -281,11 +305,7 @@ def classify_batch(items: list[dict]) -> list[dict]:
             if to_classify:
                 batch = []
                 for i, key, name, desc, material in to_classify:
-                    # материал — сильный сигнал для поиска кандидатов (текстиль/
-                    # металл/пластик обычно прямо определяют товарную позицию),
-                    # добавляем его к тексту FTS-запроса вместе с названием
-                    search_text = f"{name} {material}" if material else name
-                    cands = _fts_candidates(conn, search_text)
+                    cands = _candidates_with_material(conn, name, material)
                     batch.append({
                         "_key": key, "product_name": name, "description": desc,
                         "material": material, "candidates": cands,
