@@ -132,6 +132,8 @@ def _build_user_prompt(batch: list[dict]) -> str:
     for i, item in enumerate(batch):
         lines.append(f"### Товар {i}")
         lines.append(f"Название: {item['product_name']}")
+        if item.get("material"):
+            lines.append(f"Материал: {item['material']}")
         if item.get("description"):
             lines.append(f"Описание: {item['description']}")
         if item["candidates"]:
@@ -242,7 +244,10 @@ def classify(product_name: str, description: str | None = None) -> dict:
 
 
 def classify_batch(items: list[dict]) -> list[dict]:
-    """items: список {"product_name": str, "description": str|None}.
+    """items: список {"product_name": str, "description": str|None,
+    "material": str|None}. material — опционально, если есть у вызывающей
+    стороны (после enrich.py), используется и в FTS-поиске кандидатов, и в
+    промпте LLM — материал часто прямо указывает на товарную позицию.
     Возвращает список dict (тот же порядок): code, description, confidence,
     reason, needs_review. Кэш — по normalize(product_name); повторный вызов
     для уже закэшированных названий НЕ обращается к LLM."""
@@ -270,19 +275,24 @@ def classify_batch(items: list[dict]) -> list[dict]:
                         "needs_review": bool(cached[4]),
                     }
                 else:
-                    to_classify.append((i, key, it["product_name"], it.get("description")))
+                    to_classify.append((i, key, it["product_name"], it.get("description"),
+                                        it.get("material")))
 
             if to_classify:
                 batch = []
-                for i, key, name, desc in to_classify:
-                    cands = _fts_candidates(conn, name)
+                for i, key, name, desc, material in to_classify:
+                    # материал — сильный сигнал для поиска кандидатов (текстиль/
+                    # металл/пластик обычно прямо определяют товарную позицию),
+                    # добавляем его к тексту FTS-запроса вместе с названием
+                    search_text = f"{name} {material}" if material else name
+                    cands = _fts_candidates(conn, search_text)
                     batch.append({
                         "_key": key, "product_name": name, "description": desc,
-                        "candidates": cands,
+                        "material": material, "candidates": cands,
                     })
                 llm_results, failed_keys = _classify_llm_batch(conn, batch)
                 to_cache = []
-                for i, key, name, desc in to_classify:
+                for i, key, name, desc, material in to_classify:
                     b = llm_results.get(key)
                     has_cands = next(x for x in batch if x["_key"] == key)["candidates"]
                     if b is None:

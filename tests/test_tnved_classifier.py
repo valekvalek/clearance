@@ -72,6 +72,38 @@ def test_fts_candidates_finds_plural_form(monkeypatch):
     assert any(c["code"] == "6101209000" for c in cands)
 
 
+def test_fts_candidates_uses_material_hint(monkeypatch):
+    """Материал передаётся в текст FTS-поиска вместе с названием (см.
+    classify_batch: search_text = f"{name} {material}") — проверяем на
+    уровне самого поиска, что добавка материала находит кандидата, которого
+    общее название не находит."""
+    _fixture(monkeypatch)
+    conn = tc._connect()
+    assert tc._fts_candidates(conn, "изделие") == []
+    cands = tc._fts_candidates(conn, "изделие хлопок")
+    assert any(c["code"] == "6204611000" for c in cands)
+
+
+def test_classify_batch_passes_material_to_search(monkeypatch):
+    """classify_batch должен реально использовать item['material'] при
+    поиске кандидатов, а не только название товара."""
+    _fixture(monkeypatch)
+
+    def _fake_chat(messages, **kw):
+        text = messages[-1]["content"]
+        assert "Материал: хлопок" in text
+        assert "6204611000" in text  # кандидат найден благодаря материалу
+        return json.dumps([{"id": 0, "code": "6204611000",
+                            "confidence": "high", "reason": "test"}])
+    monkeypatch.setattr(gemini, "chat", _fake_chat)
+    monkeypatch.setattr(gemini, "API_KEY", "test")
+
+    result = tc.classify_batch([
+        {"product_name": "изделие", "description": None, "material": "хлопок"},
+    ])[0]
+    assert result["code"] == "6204611000"
+
+
 def test_classify_no_candidates_no_llm_call(monkeypatch):
     """Абсурдный ввод без кандидатов в справочнике — LLM НЕ вызывается
     вообще (угадывать запрещено), needs_review=true, код пуст."""

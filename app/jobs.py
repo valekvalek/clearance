@@ -303,7 +303,8 @@ def run_job(job_id, datas, names, filename, do_sourcing=False, web_search=True, 
         try:
             codes = tnved_classifier.classify_batch([
                 {"product_name": it["name_ru"] or it["name_original"] or "",
-                 "description": it.get("description")}
+                 "description": it.get("description"),
+                 "material": it.get("material")}
                 for it in items
             ])
             for it, cl in zip(items, codes):
