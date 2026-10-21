@@ -1,0 +1,7 @@
+# Зависимости для тестов (поверх app/requirements.txt)
+-r ../app/requirements.txt
+httpx2
+uvicorn
+xlwt
+pyflakes
+pytest

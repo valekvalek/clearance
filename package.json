@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "@claude-flow/memory": "^3.0.0-alpha.26"
+  }
+}

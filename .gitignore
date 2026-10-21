@@ -1,0 +1,23 @@
+# Ruflo local secrets and runtime data
+.venv-win/
+.venv-mac/
+.env
+.env.local
+.env.*.local
+.claude-flow/data/
+.claude-flow/logs/
+.claude-flow/sessions/
+
+# App runtime data, secrets, archival creds — never commit
+data/
+meta/env.txt
+app/uploads/
+
+# Local tooling / caches
+node_modules/
+__pycache__/
+.pytest_cache/
+.DS_Store
+.swarm/
+agentdb.rvf
+agentdb.rvf.lock

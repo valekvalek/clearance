@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<title>InvixAI — обработка инвойсов</title>
+<style>
+  :root{--bg:#0F0F1A;--card:#1A1A2E;--card2:#252550;--line:#2A2A4A;
+    --txt:#E0E2F0;--mut:#8B8FA3;--pri:#6366F1;--pri2:#8B5CF6;--ok:#34D399;--err:#F87171;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:'Segoe UI',system-ui,sans-serif;padding:32px 20px;}
+  .wrap{max-width:1100px;margin:0 auto;}
+  h1{font-size:34px;margin:0;text-align:center;font-weight:800;}
+  .sub{color:var(--mut);text-align:center;margin:6px 0 28px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px;}
+  .drop{border:2px dashed #4A4A6A;border-radius:14px;padding:44px;text-align:center;
+    cursor:pointer;transition:.15s;}
+  .drop:hover,.drop.over{border-color:var(--pri);background:#1E1E3A;}
+  .drop .ic{font-size:52px}
+  .drop .t{font-size:18px;margin-top:10px}
+  .drop .h{color:var(--mut);font-size:13px;margin-top:6px}
+  .btn{border:none;border-radius:10px;padding:13px 30px;font-size:15px;font-weight:600;
+    cursor:pointer;color:#fff;background:linear-gradient(90deg,var(--pri),var(--pri2));}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.ok{background:linear-gradient(90deg,#10B981,#34D399)}
+  .row{display:flex;gap:12px;align-items:center;justify-content:center;margin-top:18px;flex-wrap:wrap}
+  .bar{height:22px;background:#12122a;border-radius:8px;overflow:hidden;margin-top:8px}
+  .bar>div{height:100%;width:0;background:linear-gradient(90deg,var(--pri),var(--pri2));
+    transition:width .3s;}
+  .stat{color:var(--mut);font-size:13px;margin-top:10px;text-align:center;min-height:18px}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{color:var(--mut);position:sticky;top:0;background:var(--card2)}
+  a{color:#A5B4FC}
+  .tblwrap{max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:12px;margin-top:16px}
+  .hide{display:none !important}
+  .muted{color:var(--mut)}
+  .topbar{display:flex;justify-content:flex-end;align-items:center;gap:12px;
+    margin-bottom:8px;font-size:13px;color:var(--mut);flex-wrap:wrap}
+  .topbar b{color:var(--txt)}
+  .tag{font-size:11px;background:var(--pri);color:#fff;padding:2px 8px;border-radius:8px}
+  .linkbtn{background:none;border:none;color:#A5B4FC;cursor:pointer;font-size:13px;padding:4px 6px}
+  .linkbtn:hover{text-decoration:underline}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;
+    align-items:center;justify-content:center;padding:20px;z-index:50}
+  .modal .box{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:24px;width:100%;max-width:560px;max-height:85vh;overflow:auto}
+  .modal h3{margin:0 0 14px}
+  .modal input,.modal select{background:#12122a;border:1px solid #3A3A5A;border-radius:8px;
+    padding:9px 11px;color:var(--txt);font-size:14px}
+  .frow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .frow input{flex:1;min-width:120px}
+  .err{color:var(--err);font-size:13px;min-height:18px;margin-top:8px}
+  .ok{color:var(--ok);font-size:13px;min-height:18px;margin-top:8px}
+  .tabs{display:flex;gap:8px;justify-content:center;margin:0 0 18px}
+  .tab{background:var(--card);border:1px solid var(--line);color:var(--mut);
+    border-radius:10px;padding:10px 22px;font-size:14px;font-weight:600;cursor:pointer}
+  .tab.active{background:linear-gradient(90deg,var(--pri),var(--pri2));color:#fff;border-color:transparent}
+  .badge{font-size:11px;background:#10B981;color:#fff;padding:1px 7px;border-radius:7px;margin-left:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <span id="who"></span>
+    <button class="linkbtn hide" id="btnStats">📊 Статистика</button>
+    <button class="linkbtn hide" id="btnAdmin">👥 Пользователи</button>
+    <button class="linkbtn" id="btnMy">🕘 Мои результаты</button>
+    <button class="linkbtn" id="btnPwd">🔑 Сменить пароль</button>
+    <button class="linkbtn" id="btnLogout">Выйти</button>
+  </div>
+  <h1>InvixAI</h1>
+  <div class="sub">Обработка китайских инвойсов · перевод · поиск товаров</div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" id="tabProcess">📄 Обработка</button>
+    <button class="tab hide" id="tabSourcing">🛒 Закупка (Китай)</button>
+  </div>
+
+  <div class="card" id="uploadCard">
+    <div class="drop" id="drop">
+      <div class="ic">📄</div>
+      <div class="t">Перетащите файлы сюда</div>
+      <div class="h">инвойс + пакинг-лист можно вместе · .xlsx / .xls / .pdf · можно несколько файлов</div>
+    </div>
+    <input type="file" id="file" accept=".xlsx,.xls,.pdf" class="hide" multiple>
+    <label style="display:flex;gap:7px;align-items:center;justify-content:center;color:var(--mut);font-size:13px;margin-top:16px">
+      <input type="checkbox" id="webSearch"> 🔍 Искать ссылки/материал в интернете — <b style="color:#F87171">тратит баланс</b>. Фото — ТОЛЬКО из загруженных файлов (в сети не ищутся). Выкл (по умолчанию) — бесплатно
+    </label>
+    <div class="row"><button class="btn" id="go" disabled>Обработать</button></div>
+    <div class="stat" id="fname"></div>
+  </div>
+
+  <div class="card hide" id="procCard" style="margin-top:18px">
+    <div id="phase" style="font-weight:600">Обработка…</div>
+    <div class="bar"><div id="fill"></div></div>
+    <div class="stat" id="stat"></div>
+  </div>
+
+  <div class="card hide" id="resCard" style="margin-top:18px">
+    <div class="row" style="justify-content:space-between">
+      <div style="font-weight:700;color:var(--ok)">✅ Готово <span class="muted" id="rate"></span></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn ok" id="dl">Скачать .xlsx</button>
+        <button class="btn" id="again" style="background:#2A2A4A">Новый файл</button>
+      </div>
+    </div>
+    <div class="tblwrap"><table id="tbl"></table></div>
+  </div>
+</div>
+
+<div class="modal hide" id="pwdModal">
+  <div class="box">
+    <h3>Смена пароля</h3>
+    <label class="muted">Текущий пароль</label>
+    <div class="frow"><input id="pwOld" type="password"></div>
+    <label class="muted">Новый пароль</label>
+    <div class="frow"><input id="pwNew" type="password"></div>
+    <div class="err" id="pwMsg"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" style="background:#2A2A4A" onclick="closeModal('pwdModal')">Отмена</button>
+      <button class="btn" id="pwSave">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hide" id="adminModal">
+  <div class="box">
+    <h3>Пользователи</h3>
+    <div id="userList"></div>
+    <h3 style="margin-top:20px;font-size:16px">Создать пользователя</h3>
+    <div class="frow">
+      <input id="nuLogin" placeholder="логин">
+      <input id="nuPass" placeholder="пароль">
+      <select id="nuRole"><option value="user">пользователь</option><option value="admin">админ</option></select>
+      <label style="display:flex;align-items:center;gap:6px;color:var(--mut)"><input type="checkbox" id="nuBuyer"> Закупщик</label>
+      <button class="btn" id="nuCreate">Создать</button>
+    </div>
+    <div class="err" id="adminMsg"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn" style="background:#2A2A4A" onclick="closeModal('adminModal')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hide" id="myModal">
+  <div class="box">
+    <h3>Мои результаты и активность</h3>
+    <div id="myBody" class="muted">Загрузка…</div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn" style="background:#2A2A4A" onclick="closeModal('myModal')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hide" id="statsModal">
+  <div class="box" style="max-width:760px">
+    <h3>Статистика по учётным записям</h3>
+    <div id="statsBody" class="muted">Загрузка…</div>
+    <div id="statsDetail"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn" style="background:#2A2A4A" onclick="closeModal('statsModal')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let ME = null, MODE = 'process', picked = [];
+function closeModal(id){ $('#'+id).classList.add('hide'); }
+
+function setMode(m){
+  MODE = m;
+  $('#tabProcess').classList.toggle('active', m==='process');
+  $('#tabSourcing').classList.toggle('active', m==='sourcing');
+  $('#resCard').classList.add('hide'); $('#procCard').classList.add('hide');
+  $('#go').textContent = m==='sourcing' ? 'Найти на 1688 и обработать' : 'Обработать';
+}
+$('#tabProcess').onclick = () => setMode('process');
+$('#tabSourcing').onclick = () => setMode('sourcing');
+
+async function loadMe(){
+  const r = await fetch('/api/me');
+  if (!r.ok){ location.href='/login'; return; }
+  ME = await r.json();
+  const buyerTag = ME.is_buyer && ME.role!=='admin' ? ' <span class="tag">закупщик</span>' : '';
+  $('#who').innerHTML = `Вы вошли как <b>${esc(ME.username)}</b>` +
+    (ME.role==='admin' ? ' <span class="tag">админ</span>' : buyerTag);
+  if (ME.role==='admin'){ $('#btnAdmin').classList.remove('hide'); $('#btnStats').classList.remove('hide'); }
+  if (ME.is_buyer) $('#tabSourcing').classList.remove('hide');
+}
+loadMe();
+
+function ts(t){ return t ? new Date(t*1000).toLocaleString('ru-RU') : '—'; }
+const EVT = {login:'вход', process:'обработка', result:'результат', download:'скачивание', error:'ошибка'};
+
+// --- Мои результаты / активность (для всех) ---
+$('#btnMy').onclick = async () => {
+  $('#myModal').classList.remove('hide'); $('#myBody').innerHTML='Загрузка…';
+  const s = await (await fetch('/api/my/history')).json();
+  renderMy(s, '#myBody', '/api/my/result/');
+};
+function renderMy(s, sel, dlbase){
+  let h = `<div style="margin-bottom:10px">Запусков: <b>${s.runs||0}</b> · Результатов: <b>${s.results||0}</b> · Последний вход: ${ts(s.last_login)}</div>`;
+  h += '<b>Последние результаты:</b>';
+  if ((s.results_list||[]).length){
+    h += '<div class="tblwrap" style="max-height:200px"><table><tr><th>Файл</th><th>Когда</th><th>Скачать</th></tr>';
+    s.results_list.forEach(r => { h += `<tr><td>${esc(r.name)}</td><td>${ts(r.ts)}</td><td><a href="${dlbase}${r.id}">⬇ xlsx</a></td></tr>`; });
+    h += '</table></div>';
+  } else h += ' <span class="muted">пока нет</span>';
+  h += '<div style="margin-top:12px"><b>История действий:</b></div>';
+  h += '<div class="tblwrap" style="max-height:200px"><table><tr><th>Когда</th><th>Действие</th><th>Детали</th></tr>';
+  (s.events||[]).forEach(e => { h += `<tr><td>${ts(e.ts)}</td><td>${EVT[e.type]||e.type}</td><td>${esc(e.detail||'')}</td></tr>`; });
+  h += '</table></div>';
+  $(sel).innerHTML = h;
+}
+
+// --- Статистика (админ) ---
+$('#btnStats').onclick = async () => {
+  $('#statsModal').classList.remove('hide'); $('#statsDetail').innerHTML=''; $('#statsBody').innerHTML='Загрузка…';
+  const d = await (await fetch('/api/admin/activity')).json();
+  let h = `<div style="margin-bottom:10px;font-size:15px">Всего обработок за всё время: <b>${d.total_runs||0}</b> · с результатом: <b>${d.total_results||0}</b></div>`;
+  h += '<div class="tblwrap" style="max-height:300px"><table><tr><th>Учётка</th><th>Роль</th><th>Запусков</th><th>Результатов</th><th>Последний запуск</th></tr>';
+  (d.users||[]).forEach(u => {
+    const grp = (u.groups||[]).includes('Закупщик') ? ' <span class="badge">закупщик</span>' : '';
+    h += `<tr style="cursor:pointer" onclick="statUser('${esc(u.username)}')"><td><b>${esc(u.username)}</b>${grp}</td><td>${u.role}</td><td>${u.runs}</td><td>${u.results}</td><td>${ts(u.last_run)}</td></tr>`;
+  });
+  h += '</table></div><div class="muted" style="margin-top:6px">Нажми на учётку — история и её последние результаты.</div>';
+  $('#statsBody').innerHTML = h;
+};
+async function statUser(uname){
+  $('#statsDetail').innerHTML = 'Загрузка…';
+  const s = await (await fetch('/api/admin/activity/'+encodeURIComponent(uname))).json();
+  let wrap = document.createElement('div');
+  wrap.innerHTML = `<h3 style="margin-top:18px;font-size:16px">Учётка: ${esc(uname)}</h3><div id="statsUserBody"></div>`;
+  $('#statsDetail').innerHTML=''; $('#statsDetail').appendChild(wrap);
+  renderMy(s, '#statsUserBody', '/api/admin/result/'+encodeURIComponent(uname)+'/');
+}
+
+$('#btnLogout').onclick = async () => { await fetch('/api/logout',{method:'POST'}); location.href='/login'; };
+
+$('#btnPwd').onclick = () => { $('#pwMsg').textContent=''; $('#pwOld').value=''; $('#pwNew').value=''; $('#pwdModal').classList.remove('hide'); };
+$('#pwSave').onclick = async () => {
+  $('#pwMsg').textContent='';
+  const r = await fetch('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({old:$('#pwOld').value,new:$('#pwNew').value})});
+  const d = await r.json().catch(()=>({}));
+  if (r.ok){ $('#pwMsg').className='ok'; $('#pwMsg').textContent='Пароль изменён'; setTimeout(()=>closeModal('pwdModal'),900); }
+  else { $('#pwMsg').className='err'; $('#pwMsg').textContent=d.detail||'Ошибка'; }
+};
+
+$('#btnAdmin').onclick = () => { $('#adminMsg').textContent=''; loadUsers(); $('#adminModal').classList.remove('hide'); };
+async function loadUsers(){
+  const r = await fetch('/api/admin/users'); if(!r.ok) return;
+  const users = (await r.json()).users;
+  $('#userList').innerHTML = users.map(u => {
+    const isBuyer = u.groups && u.groups.indexOf('Закупщик')>=0;
+    const tags = (u.role==='admin'?' <span class="tag">админ</span>':'')
+      + (isBuyer?' <span class="badge">закупщик</span>':'');
+    const buyerBtn = u.role==='admin' ? ''
+      : `<button class="linkbtn" onclick="setBuyer('${esc(u.username)}',${!isBuyer})">${isBuyer?'убрать закупщика':'сделать закупщиком'}</button>`;
+    return `<div class="frow" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:6px 0">
+      <span><b>${esc(u.username)}</b>${tags}</span>
+      <span>
+        ${buyerBtn}
+        <button class="linkbtn" onclick="resetPass('${esc(u.username)}')">сбросить пароль</button>
+        ${u.role!=='admin'?`<button class="linkbtn" style="color:#F87171" onclick="delUser('${esc(u.username)}')">удалить</button>`:''}
+      </span>
+    </div>`;
+  }).join('');
+}
+$('#nuCreate').onclick = async () => {
+  $('#adminMsg').className='err'; $('#adminMsg').textContent='';
+  const r = await fetch('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:$('#nuLogin').value,password:$('#nuPass').value,role:$('#nuRole').value,buyer:$('#nuBuyer').checked})});
+  const d = await r.json().catch(()=>({}));
+  if (r.ok){ $('#nuLogin').value=''; $('#nuPass').value=''; $('#nuBuyer').checked=false; $('#adminMsg').className='ok'; $('#adminMsg').textContent='Создан'; loadUsers(); }
+  else { $('#adminMsg').textContent = d.detail||'Ошибка'; }
+};
+async function setBuyer(username, val){
+  const r = await fetch('/api/admin/set-buyer',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username,buyer:val})});
+  if(r.ok){ loadUsers(); } else { const d=await r.json().catch(()=>({})); $('#adminMsg').className='err'; $('#adminMsg').textContent=d.detail||'Ошибка'; }
+}
+async function resetPass(username){
+  const np = prompt('Новый пароль для '+username+':'); if(!np) return;
+  const r = await fetch('/api/admin/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username,password:np})});
+  const d = await r.json().catch(()=>({}));
+  $('#adminMsg').className = r.ok?'ok':'err'; $('#adminMsg').textContent = r.ok?'Пароль обновлён':(d.detail||'Ошибка');
+}
+async function delUser(username){
+  if(!confirm('Удалить пользователя '+username+'?')) return;
+  const r = await fetch('/api/admin/users/'+encodeURIComponent(username),{method:'DELETE'});
+  const d = await r.json().catch(()=>({}));
+  if(r.ok){ loadUsers(); } else { $('#adminMsg').className='err'; $('#adminMsg').textContent=d.detail||'Ошибка'; }
+}
+let jobId = null, timer = null;
+
+const drop = $('#drop'), fileInput = $('#file');
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over');
+  if (e.dataTransfer.files.length) setFiles(e.dataTransfer.files); };
+fileInput.onchange = () => { if (fileInput.files.length) setFiles(fileInput.files); };
+
+function setFiles(list){
+  picked = Array.from(list).filter(f => /\.(xlsx|xls|pdf)$/i.test(f.name));
+  if (!picked.length){ $('#fname').textContent = 'Нужен .xlsx/.xls/.pdf'; $('#go').disabled = true; return; }
+  $('#fname').textContent = '📎 ' + picked.map(f => f.name).join('  +  ');
+  $('#go').disabled = false;
+}
+
+$('#go').onclick = async () => {
+  if (!picked.length) return;
+  $('#go').disabled = true;
+  const fd = new FormData();
+  picked.forEach(f => fd.append('files', f));
+  fd.append('sourcing', MODE==='sourcing' ? '1' : '0');
+  fd.append('web', $('#webSearch').checked ? '1' : '0');
+  const r = await fetch('/api/process', { method:'POST', body:fd });
+  if (!r.ok){ alert('Ошибка загрузки: ' + (await r.text())); $('#go').disabled=false; return; }
+  jobId = (await r.json()).job_id;
+  $('#procCard').classList.remove('hide');
+  $('#resCard').classList.add('hide');
+  timer = setInterval(poll, 1500); poll();
+};
+
+async function poll(){
+  const r = await fetch('/api/status/' + jobId);
+  if (!r.ok) return;
+  const s = await r.json();
+  const phases = {queued:'В очереди…', parsing:'Распознаю товары…',
+    enriching:'Перевод и поиск товаров…', sourcing:'Поиск на китайских площадках…',
+    done:'Готово', error:'Ошибка'};
+  $('#phase').textContent = phases[s.status] || s.status;
+  const pct = s.total ? Math.round(s.current/s.total*100) : (s.status==='parsing'?15:5);
+  $('#fill').style.width = pct + '%';
+  $('#stat').textContent = s.message + (s.total ? ` · ${s.current}/${s.total}` : '');
+  if (s.status === 'done'){ clearInterval(timer); showResult(s); }
+  if (s.status === 'error'){ clearInterval(timer); $('#stat').style.color='var(--err)'; $('#go').disabled=false; }
+}
+
+async function showResult(s){
+  $('#procCard').classList.add('hide');
+  $('#resCard').classList.remove('hide');
+  $('#rate').textContent = s.rate ? '· ' + s.rate : '';
+  const pv = await (await fetch('/api/preview/' + jobId)).json();
+  const rows = pv.preview || [];
+  const src = rows.some(r => r.src);
+  let html = '<tr><th>#</th><th>Фото</th><th>Наименование (RU)</th><th>Кит.</th><th>Бренд</th>'
+    + '<th>Артикул</th><th>Кол-во</th><th>Ссылка</th><th>Сумма $</th>'
+    + (src ? '<th>1688 / Китай</th><th>Поставщик</th><th>Цена ¥</th><th>MOQ</th>' : '')
+    + '</tr>';
+  rows.forEach((it,i) => {
+    const link = it.url ? `<a href="${it.url}" target="_blank" rel="noopener">ссылка ↗</a>` : '<span class="muted">—</span>';
+    const photo = it.photo
+      ? `<a href="${it.photo}" target="_blank" rel="noopener"><img src="${it.photo}" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:6px;background:#12122a" loading="lazy" onerror="this.style.display='none'"></a>`
+      : '<span class="muted">—</span>';
+    html += `<tr><td>${i+1}</td><td>${photo}</td><td>${esc(it.name_ru)}</td><td>${esc(it.name_zh)}</td>`
+      + `<td>${esc(it.brand)}</td><td>${esc(it.article)}</td>`
+      + `<td>${it.qty} ${esc(it.unit)}</td><td>${link}</td><td>${it.total_usd}</td>`;
+    if (src) {
+      const s = it.src || {};
+      const cn = s.china_url ? `<a href="${s.china_url}" target="_blank" rel="noopener">открыть ↗</a>` : '<span class="muted">—</span>';
+      html += `<td>${cn}</td><td>${esc(s.supplier)||'<span class="muted">—</span>'}</td>`
+        + `<td>${esc(s.price_cn)||'—'}</td><td>${esc(s.moq)||'—'}</td>`;
+    }
+    html += '</tr>';
+  });
+  $('#tbl').innerHTML = html;
+}
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+$('#dl').onclick = () => location.href = '/api/result/' + jobId;
+$('#again').onclick = () => { $('#resCard').classList.add('hide'); $('#go').disabled=false;
+  picked=[]; $('#fname').textContent=''; fileInput.value=''; };
+</script>
+</body>
+</html>

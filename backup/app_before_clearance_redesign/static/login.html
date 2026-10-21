@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<title>InvixAI — вход</title>
+<style>
+  :root{--bg:#0F0F1A;--card:#1A1A2E;--line:#2A2A4A;--txt:#E0E2F0;--mut:#8B8FA3;
+    --pri:#6366F1;--pri2:#8B5CF6;--err:#F87171;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:20px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:34px;width:100%;max-width:380px;}
+  h1{font-size:28px;margin:0 0 4px;text-align:center;font-weight:800}
+  .sub{color:var(--mut);text-align:center;margin:0 0 24px;font-size:13px}
+  label{display:block;color:var(--mut);font-size:13px;margin:14px 0 6px}
+  input{width:100%;background:#12122a;border:1px solid #3A3A5A;border-radius:9px;
+    padding:12px 14px;color:var(--txt);font-size:15px}
+  input:focus{outline:none;border-color:var(--pri)}
+  button{width:100%;margin-top:22px;border:none;border-radius:10px;padding:13px;
+    font-size:15px;font-weight:600;color:#fff;cursor:pointer;
+    background:linear-gradient(90deg,var(--pri),var(--pri2))}
+  .err{color:var(--err);font-size:13px;margin-top:14px;min-height:18px;text-align:center}
+</style>
+</head>
+<body>
+  <form class="card" id="f">
+    <h1>InvixAI</h1>
+    <div class="sub">Обработка китайских инвойсов</div>
+    <label>Логин</label>
+    <input id="u" autocomplete="username" autofocus>
+    <label>Пароль</label>
+    <input id="p" type="password" autocomplete="current-password">
+    <button type="submit">Войти</button>
+    <div class="err" id="e"></div>
+  </form>
+<script>
+document.getElementById('f').onsubmit = async (ev) => {
+  ev.preventDefault();
+  document.getElementById('e').textContent = '';
+  const r = await fetch('/api/login', {method:'POST',headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({username:document.getElementById('u').value,
+                          password:document.getElementById('p').value})});
+  if (r.ok){ location.href = '/'; }
+  else { const d=await r.json().catch(()=>({})); document.getElementById('e').textContent = d.detail || 'Ошибка входа'; }
+};
+</script>
+</body>
+</html>

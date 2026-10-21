@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<title>Clearance AI — вход</title>
+<script>
+  // тема выставляется ДО отрисовки — иначе страница на миг мигает светлым/тёмным
+  try {
+    var _t = localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', _t);
+  } catch (e) {}
+</script>
+<style>
+  :root{
+    --bg:#FAFAFA;--card:#FFFFFF;--border:#E5E5E5;--text:#111113;--muted:#6B6B70;
+    --input-bg:#FFFFFF;--input-border:#D8D8DC;
+    --pri:#111113;--pri-text:#FFFFFF;--pri-hover:#000000;--err:#DC2626;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0B0B0C;--card:#17171A;--border:#2A2A2E;--text:#F2F2F3;--muted:#9A9AA2;
+    --input-bg:#101012;--input-border:#333338;
+    --pri:#F2F2F3;--pri-text:#0B0B0C;--pri-hover:#FFFFFF;--err:#F87171;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,'Segoe UI',system-ui,sans-serif;min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:20px;
+    transition:background .15s,color .15s;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;
+    padding:36px;width:100%;max-width:380px;position:relative;}
+  .theme-toggle{position:absolute;top:14px;right:14px;background:none;border:1px solid var(--border);
+    border-radius:8px;width:30px;height:30px;cursor:pointer;color:var(--muted);font-size:14px;
+    display:flex;align-items:center;justify-content:center;}
+  .brand{font-size:22px;margin:0 0 4px;text-align:center;font-weight:700;letter-spacing:-.02em}
+  .brand b{font-weight:800}
+  .sub{color:var(--muted);text-align:center;margin:0 0 26px;font-size:13px}
+  label{display:block;color:var(--muted);font-size:13px;margin:14px 0 6px}
+  input{width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:9px;
+    padding:12px 14px;color:var(--text);font-size:15px}
+  input:focus{outline:none;border-color:var(--pri)}
+  button.submit{width:100%;margin-top:24px;border:none;border-radius:10px;padding:13px;
+    font-size:15px;font-weight:600;color:var(--pri-text);cursor:pointer;background:var(--pri);
+    transition:background .15s;}
+  button.submit:hover{background:var(--pri-hover)}
+  .err{color:var(--err);font-size:13px;margin-top:14px;min-height:18px;text-align:center}
+</style>
+</head>
+<body>
+  <form class="card" id="f">
+    <button type="button" class="theme-toggle" id="themeToggle" title="Тема">◐</button>
+    <div class="brand">Clearance <b>AI</b></div>
+    <div class="sub">Обработка китайских инвойсов</div>
+    <label>Логин</label>
+    <input id="u" autocomplete="username" autofocus>
+    <label>Пароль</label>
+    <input id="p" type="password" autocomplete="current-password">
+    <button type="submit" class="submit">Войти</button>
+    <div class="err" id="e"></div>
+  </form>
+<script>
+try {
+  document.getElementById('themeToggle').onclick = function(){
+    var theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('theme', theme); } catch (e) {}
+  };
+} catch (e) {}
+document.getElementById('f').onsubmit = async (ev) => {
+  ev.preventDefault();
+  document.getElementById('e').textContent = '';
+  const r = await fetch('/api/login', {method:'POST',headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({username:document.getElementById('u').value,
+                          password:document.getElementById('p').value})});
+  if (r.ok){ location.href = '/'; }
+  else { const d=await r.json().catch(()=>({})); document.getElementById('e').textContent = d.detail || 'Ошибка входа'; }
+};
+</script>
+</body>
+</html>

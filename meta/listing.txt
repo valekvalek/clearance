@@ -1,0 +1,239 @@
+/data:
+total 32
+drwxr-xr-x  4 root root 4096 Sep 24 06:18 .
+drwxr-xr-x  1 root root 4096 Sep 14 13:18 ..
+-rw-r--r--  1 root root   19 Aug 19 16:37 .reset_token
+drwxr-xr-x  2 root root 4096 Sep 23 12:26 activity
+drwxr-xr-x 16 root root 4096 Sep 23 12:25 results
+-rw-r--r--  1 root root   32 Jul 17 09:36 secret.key
+-rw-r--r--  1 root root 1656 Sep 23 12:25 stats.json
+-rw-r--r--  1 root root 3339 Sep 23 12:24 users.json
+
+/data/activity:
+total 80
+drwxr-xr-x 2 root root 4096 Sep 23 12:26 .
+drwxr-xr-x 4 root root 4096 Sep 24 06:18 ..
+-rw-r--r-- 1 root root 2612 Sep 18 08:47 Chzhan_b91fcaaa.jsonl
+-rw-r--r-- 1 root root   71 Aug 20 06:36 Denisenko_92d57326.jsonl
+-rw-r--r-- 1 root root 5825 Sep 17 10:10 HLGLEV_ef77b564.jsonl
+-rw-r--r-- 1 root root 1781 Sep 11 07:30 Helowned_f4080073.jsonl
+-rw-r--r-- 1 root root  702 Aug 26 12:28 KKK_5ce8b4e3.jsonl
+-rw-r--r-- 1 root root  972 Sep 15 17:00 Kartunov_1121bb51.jsonl
+-rw-r--r-- 1 root root 1307 Sep 14 14:00 Markelov_5cd19522.jsonl
+-rw-r--r-- 1 root root  411 Aug 27 08:21 Orishchenko_29ace735.jsonl
+-rw-r--r-- 1 root root 4451 Sep 21 12:00 Petrenko_07ffa923.jsonl
+-rw-r--r-- 1 root root  655 Sep  8 07:45 SALFETKA_7dfe3e2f.jsonl
+-rw-r--r-- 1 root root 1741 Sep 14 13:15 SHOMA_e1258e9f.jsonl
+-rw-r--r-- 1 root root 3087 Aug 27 13:02 Shapovalenko_bfe2ff35.jsonl
+-rw-r--r-- 1 root root 5884 Sep 23 07:47 invixadmin_7d223ba4.jsonl
+-rw-r--r-- 1 root root 1601 Sep 21 14:44 orlov_3239317e.jsonl
+-rw-r--r-- 1 root root  450 Sep 23 12:26 valek_63e35a00.jsonl
+
+/data/results:
+total 64
+drwxr-xr-x 16 root root 4096 Sep 23 12:25 .
+drwxr-xr-x  4 root root 4096 Sep 24 06:18 ..
+drwxr-xr-x  2 root root 4096 Sep 18 08:46 Chzhan_b91fcaaa
+drwxr-xr-x  2 root root 4096 Sep 17 10:09 HLGLEV_ef77b564
+drwxr-xr-x  2 root root 4096 Sep 11 07:30 Helowned_f4080073
+drwxr-xr-x  2 root root 4096 Aug 26 12:23 KKK_5ce8b4e3
+drwxr-xr-x  2 root root 4096 Sep 15 08:40 Kartunov_1121bb51
+drwxr-xr-x  2 root root 4096 Sep 14 13:57 Markelov_5cd19522
+drwxr-xr-x  2 root root 4096 Aug 27 08:20 Orishchenko_29ace735
+drwxr-xr-x  2 root root 4096 Sep 21 12:00 Petrenko_07ffa923
+drwxr-xr-x  2 root root 4096 Sep  8 07:45 SALFETKA_7dfe3e2f
+drwxr-xr-x  2 root root 4096 Sep  7 13:18 SHOMA_e1258e9f
+drwxr-xr-x  2 root root 4096 Aug 27 13:01 Shapovalenko_bfe2ff35
+drwxr-xr-x  2 root root 4096 Sep 15 06:40 invixadmin_7d223ba4
+drwxr-xr-x  2 root root 4096 Sep  9 08:45 orlov_3239317e
+drwxr-xr-x  2 root root 4096 Sep 23 12:25 valek_63e35a00
+
+/data/results/Chzhan_b91fcaaa:
+total 208
+drwxr-xr-x  2 root root  4096 Sep 18 08:46 .
+drwxr-xr-x 16 root root  4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root 31513 Aug 21 13:47 1df62a1db822.xlsx
+-rw-r--r--  1 root root 29394 Aug 21 13:23 6668284a01dd.xlsx
+-rw-r--r--  1 root root  5960 Aug 25 13:02 78d89c11ecef.xlsx
+-rw-r--r--  1 root root  9545 Aug 21 13:22 89a5b6e0fe59.xlsx
+-rw-r--r--  1 root root  5989 Aug 25 13:05 945381e7d107.xlsx
+-rw-r--r--  1 root root 10141 Sep 18 08:46 9e89cf172b65.xlsx
+-rw-r--r--  1 root root 90301 Sep 15 10:34 b98deb0d7e1a.xlsx
+-rw-r--r--  1 root root   936 Sep 18 08:46 index.json
+
+/data/results/HLGLEV_ef77b564:
+total 304
+drwxr-xr-x  2 root root  4096 Sep 17 10:09 .
+drwxr-xr-x 16 root root  4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root 49126 Sep  4 13:54 03bf177ff366.xlsx
+-rw-r--r--  1 root root  6403 Sep 10 12:47 3375e9458a31.xlsx
+-rw-r--r--  1 root root  5955 Sep 17 10:09 34f33c0979d2.xlsx
+-rw-r--r--  1 root root 37334 Sep 11 12:09 58f31fd3f365.xlsx
+-rw-r--r--  1 root root 17719 Sep 15 12:20 6381436bcd27.xlsx
+-rw-r--r--  1 root root 25716 Sep 15 12:28 6f25c836c8db.xlsx
+-rw-r--r--  1 root root 83378 Sep  9 07:11 8bed7a476232.xlsx
+-rw-r--r--  1 root root  6155 Sep 11 10:32 a74b8488ed35.xlsx
+-rw-r--r--  1 root root  5787 Sep  8 09:20 dc05fd069803.xlsx
+-rw-r--r--  1 root root 39762 Sep 14 09:34 e11f3a40000b.xlsx
+-rw-r--r--  1 root root  1280 Sep 17 10:09 index.json
+
+/data/results/Helowned_f4080073:
+total 192
+drwxr-xr-x  2 root root   4096 Sep 11 07:30 .
+drwxr-xr-x 16 root root   4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root   9889 Sep  9 09:12 099340d1bb59.xlsx
+-rw-r--r--  1 root root 100012 Sep 10 12:46 1ab9060930b2.xlsx
+-rw-r--r--  1 root root  57776 Sep 11 07:30 459db6321e9a.xlsx
+-rw-r--r--  1 root root   7494 Sep  9 09:08 df836afc5a7d.xlsx
+-rw-r--r--  1 root root    569 Sep 11 07:30 index.json
+
+/data/results/KKK_5ce8b4e3:
+total 620
+drwxr-xr-x  2 root root   4096 Aug 26 12:23 .
+drwxr-xr-x 16 root root   4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root 573486 Aug 26 12:23 a76e4ea67de2.xlsx
+-rw-r--r--  1 root root  42814 Aug 24 10:51 d41ccc2c51b8.xlsx
+-rw-r--r--  1 root root    244 Aug 26 12:23 index.json
+
+/data/results/Kartunov_1121bb51:
+total 156
+drwxr-xr-x  2 root root   4096 Sep 15 08:40 .
+drwxr-xr-x 16 root root   4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root   8274 Sep 15 08:40 7144a6aed513.xlsx
+-rw-r--r--  1 root root 133339 Aug 31 14:33 7a0b7ccec588.xlsx
+-rw-r--r--  1 root root    241 Sep 15 08:40 index.json
+
+/data/results/Markelov_5cd19522:
+total 1260
+drwxr-xr-x  2 root root   4096 Sep 14 13:57 .
+drwxr-xr-x 16 root root   4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root 347577 Sep 14 13:51 0adf707ce441.xlsx
+-rw-r--r--  1 root root 166390 Sep  7 07:07 4b6bfe62a008.xlsx
+-rw-r--r--  1 root root 759768 Sep 14 13:57 799dcbc417b7.xlsx
+-rw-r--r--  1 root root    440 Sep 14 13:57 index.json
+
+/data/results/Orishchenko_29ace735:
+total 44
+drwxr-xr-x  2 root root  4096 Aug 27 08:20 .
+drwxr-xr-x 16 root root  4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root 29396 Aug 27 08:20 ed22b6ae633f.xlsx
+-rw-r--r--  1 root root   131 Aug 27 08:20 index.json
+
+/data/results/Petrenko_07ffa923:
+total 336
+drwxr-xr-x  2 root root   4096 Sep 21 12:00 .
+drwxr-xr-x 16 root root   4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root   8571 Sep  9 11:40 0ec2cb9a439c.xlsx
+-rw-r--r--  1 root root  23099 Aug 31 13:32 3485a815dd5c.xlsx
+-rw-r--r--  1 root root  31862 Sep  1 13:02 4f2961d19ea9.xlsx
+-rw-r--r--  1 root root   8257 Sep 14 12:58 6573a126af81.xlsx
+-rw-r--r--  1 root root  58493 Aug 31 13:10 a09c34a36e78.xlsx
+-rw-r--r--  1 root root   5981 Sep  1 14:15 a3191136838d.xlsx
+-rw-r--r--  1 root root   5762 Sep 21 09:25 d9f8760df976.xlsx
+-rw-r--r--  1 root root  14077 Sep 21 12:00 e07d2fd73edd.xlsx
+-rw-r--r--  1 root root   8497 Sep  9 11:37 f5bee3a94138.xlsx
+-rw-r--r--  1 root root 142120 Sep 16 07:00 f6b8c35c8834.xlsx
+-rw-r--r--  1 root root   1319 Sep 21 12:00 index.json
+
+/data/results/SALFETKA_7dfe3e2f:
+total 680
+drwxr-xr-x  2 root root   4096 Sep  8 07:45 .
+drwxr-xr-x 16 root root   4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root   8978 Sep  8 07:45 6f5bb7ad102a.xlsx
+-rw-r--r--  1 root root 667787 Sep  8 07:43 91305ff07e76.xlsx
+-rw-r--r--  1 root root    262 Sep  8 07:45 index.json
+
+/data/results/SHOMA_e1258e9f:
+total 3112
+drwxr-xr-x  2 root root    4096 Sep  7 13:18 .
+drwxr-xr-x 16 root root    4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root  184599 Aug 20 06:36 04a9a900dd56.xlsx
+-rw-r--r--  1 root root  513209 Aug 24 14:34 4bd131eea4fa.xlsx
+-rw-r--r--  1 root root 1894737 Sep  7 13:18 70b140973244.xlsx
+-rw-r--r--  1 root root  515835 Aug 24 14:24 a29040a1d4fc.xlsx
+-rw-r--r--  1 root root   56308 Sep  7 06:59 ba1183483cee.xlsx
+-rw-r--r--  1 root root     700 Sep  7 13:18 index.json
+
+/data/results/Shapovalenko_bfe2ff35:
+total 544
+drwxr-xr-x  2 root root   4096 Aug 27 13:01 .
+drwxr-xr-x 16 root root   4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root 179123 Aug 20 10:35 403d51192cdc.xlsx
+-rw-r--r--  1 root root  15703 Aug 25 08:27 49b455c3c587.xlsx
+-rw-r--r--  1 root root  30145 Aug 20 06:38 5480fab7a531.xlsx
+-rw-r--r--  1 root root  59594 Aug 27 13:01 631264d9ead6.xlsx
+-rw-r--r--  1 root root   9177 Aug 26 08:12 661e4426eae9.xlsx
+-rw-r--r--  1 root root 121709 Aug 25 12:10 6c68ebf9196a.xlsx
+-rw-r--r--  1 root root  16684 Aug 26 08:13 a47a99636d32.xlsx
+-rw-r--r--  1 root root  57155 Aug 21 13:44 a71bf6174724.xlsx
+-rw-r--r--  1 root root  37003 Aug 27 06:51 d4488eb7d181.xlsx
+-rw-r--r--  1 root root   1201 Aug 27 13:01 index.json
+
+/data/results/invixadmin_7d223ba4:
+total 1656
+drwxr-xr-x  2 root root   4096 Sep 15 06:40 .
+drwxr-xr-x 16 root root   4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root 515264 Aug 27 12:59 3315b92972b6.xlsx
+-rw-r--r--  1 root root 382586 Sep  7 07:18 4215bcf00b65.xlsx
+-rw-r--r--  1 root root 417042 Sep  8 07:45 426515664727.xlsx
+-rw-r--r--  1 root root  88476 Sep  2 10:13 674a7d6fc7bf.xlsx
+-rw-r--r--  1 root root 176360 Sep  8 08:56 9e49723c2a84.xlsx
+-rw-r--r--  1 root root   7135 Sep 15 06:40 a16c1c772830.xlsx
+-rw-r--r--  1 root root  48410 Aug 28 10:17 d09ecb8645e3.xlsx
+-rw-r--r--  1 root root   6255 Sep  9 11:44 e3b1c927fb12.xlsx
+-rw-r--r--  1 root root   6442 Sep 11 12:34 e7d3a80c7777.xlsx
+-rw-r--r--  1 root root  17628 Sep  2 06:03 f4dc8148abd2.xlsx
+-rw-r--r--  1 root root   1319 Sep 15 06:40 index.json
+
+/data/results/orlov_3239317e:
+total 308
+drwxr-xr-x  2 root root   4096 Sep  9 08:45 .
+drwxr-xr-x 16 root root   4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root 210333 Aug 25 14:37 04d0b9e92bcf.xlsx
+-rw-r--r--  1 root root  33971 Sep  4 08:19 288897977fa7.xlsx
+-rw-r--r--  1 root root  12518 Sep  7 11:18 6bbfbd3455c0.xlsx
+-rw-r--r--  1 root root  33609 Sep  9 08:45 a84f20484cbf.xlsx
+-rw-r--r--  1 root root    506 Sep  9 08:45 index.json
+
+/data/results/valek_63e35a00:
+total 20
+drwxr-xr-x  2 root root 4096 Sep 23 12:25 .
+drwxr-xr-x 16 root root 4096 Sep 23 12:25 ..
+-rw-r--r--  1 root root 6232 Sep 23 12:25 2f2db9fe2b66.xlsx
+-rw-r--r--  1 root root  143 Sep 23 12:25 index.json
+
+/opt/app:
+total 136
+drwxr-xr-x 1 root root  4096 Sep 14 13:18 .
+drwxr-xr-x 1 root root  4096 Sep 14 13:13 ..
+-rw-r--r-- 1 root root   346 Sep 14 13:13 Dockerfile
+drwxr-xr-x 2 root root  4096 Sep 14 13:18 __pycache__
+-rw-r--r-- 1 root root  5143 Aug 19 16:33 activity.py
+-rw-r--r-- 1 root root 15973 Sep  8 08:17 app.py
+-rw-r--r-- 1 root root  6145 Aug 19 16:34 auth.py
+-rw-r--r-- 1 root root  1255 Jul 17 08:46 currency.py
+-rw-r--r-- 1 root root 56167 Sep 14 13:13 pipeline.py
+-rw-r--r-- 1 root root   132 Aug 17 13:29 requirements.txt
+-rw-r--r-- 1 root root  6061 Jul 17 11:53 sourcing.py
+drwxr-xr-x 2 root root  4096 Sep 14 13:13 static
+-rw-r--r-- 1 root root  7123 Sep  4 14:41 vibecode.py
+
+/opt/app/__pycache__:
+total 176
+drwxr-xr-x 2 root root  4096 Sep 14 13:18 .
+drwxr-xr-x 1 root root  4096 Sep 14 13:18 ..
+-rw-r--r-- 1 root root 11146 Sep 14 13:18 activity.cpython-311.pyc
+-rw-r--r-- 1 root root 31286 Sep 14 13:18 app.cpython-311.pyc
+-rw-r--r-- 1 root root 14273 Sep 14 13:18 auth.cpython-311.pyc
+-rw-r--r-- 1 root root  2236 Sep 14 13:18 currency.cpython-311.pyc
+-rw-r--r-- 1 root root 79840 Sep 14 13:18 pipeline.cpython-311.pyc
+-rw-r--r-- 1 root root  9710 Sep 14 13:18 sourcing.cpython-311.pyc
+-rw-r--r-- 1 root root 10643 Sep 14 13:18 vibecode.cpython-311.pyc
+
+/opt/app/static:
+total 40
+drwxr-xr-x 2 root root  4096 Sep 14 13:13 .
+drwxr-xr-x 1 root root  4096 Sep 14 13:18 ..
+-rw-r--r-- 1 root root   614 Jul 17 08:48 icon.svg
+-rw-r--r-- 1 root root 21859 Sep  8 08:27 index.html
+-rw-r--r-- 1 root root  2418 Jul 17 09:34 login.html

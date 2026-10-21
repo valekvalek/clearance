@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "installedAt": "2026-10-20T10:14:02.450Z",
+  "files": {
+    "/Users/user1/Downloads/invixxxx/.claude/settings.json": {
+      "plugins": [
+        "ruflo-mods@ruflo",
+        "ruflo-swarm@ruflo",
+        "ruflo-console@ruflo"
+      ],
+      "marketplace": true,
+      "env": true,
+      "claudeInstalled": [
+        "ruflo-mods@ruflo",
+        "ruflo-swarm@ruflo",
+        "ruflo-console@ruflo"
+      ]
+    }
+  }
+}

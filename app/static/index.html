@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<title>Clearance AI — обработка инвойсов</title>
+<style>
+  :root{
+    --bg:#FAFAFA;--card:#FFFFFF;--card2:#F5F5F6;--line:#E5E5E5;--line2:#EFEFEF;
+    --txt:#111113;--mut:#6B6B70;--input-bg:#FFFFFF;--input-border:#D8D8DC;
+    --pri:#111113;--pri-text:#FFFFFF;--pri-hover:#000000;
+    --ok:#16A34A;--warn:#B45309;--warnbg:rgba(180,83,9,.08);--err:#DC2626;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0B0B0C;--card:#17171A;--card2:#1C1C1F;--line:#2A2A2E;--line2:#232326;
+    --txt:#F2F2F3;--mut:#9A9AA2;--input-bg:#101012;--input-border:#333338;
+    --pri:#F2F2F3;--pri-text:#0B0B0C;--pri-hover:#FFFFFF;
+    --ok:#4ADE80;--warn:#FBBF24;--warnbg:rgba(251,191,36,.08);--err:#F87171;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    transition:background .15s,color .15s;}
+  a{color:inherit}
+  .hide{display:none !important}
+  .muted{color:var(--mut)}
+
+  /* ---------- navbar ---------- */
+  .navbar{display:flex;align-items:center;gap:20px;padding:14px 28px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:var(--bg);z-index:40;}
+  .brand{font-size:17px;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
+  .brand b{font-weight:800}
+  .navtabs{display:flex;gap:4px;margin:0 auto}
+  .navtab{background:none;border:1px solid transparent;color:var(--mut);border-radius:8px;
+    padding:8px 16px;font-size:14px;font-weight:600;cursor:pointer;}
+  .navtab.active{color:var(--txt);background:var(--card2);border-color:var(--line)}
+  .navright{display:flex;align-items:center;gap:8px}
+  .icon-btn{background:none;border:1px solid var(--line);border-radius:8px;width:32px;height:32px;
+    cursor:pointer;color:var(--mut);font-size:14px;display:flex;align-items:center;justify-content:center}
+  .icon-btn:hover{color:var(--txt)}
+  .usermenu{position:relative}
+  .usermenu-btn{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 10px;
+    cursor:pointer;color:var(--txt);font-size:13px;display:flex;align-items:center;gap:6px}
+  .usermenu-btn .chev{color:var(--mut);font-size:11px}
+  .usermenu-panel{position:absolute;right:0;top:calc(100% + 6px);background:var(--card);
+    border:1px solid var(--line);border-radius:12px;min-width:200px;padding:6px;z-index:50}
+  .menuitem{display:block;width:100%;text-align:left;background:none;border:none;border-radius:7px;
+    padding:9px 10px;font-size:13px;color:var(--txt);cursor:pointer}
+  .menuitem:hover{background:var(--card2)}
+  .menuitem.danger{color:var(--err)}
+  .tag{font-size:10px;background:var(--pri);color:var(--pri-text);padding:2px 7px;border-radius:7px}
+  .badge{font-size:10px;background:var(--card2);border:1px solid var(--line);color:var(--mut);
+    padding:1px 7px;border-radius:7px;margin-left:6px}
+
+  /* ---------- page ---------- */
+  .page{max-width:1040px;margin:0 auto;padding:36px 24px 60px}
+  h1.title{font-size:22px;margin:0 0 2px;font-weight:700;letter-spacing:-.01em}
+  .sub{color:var(--mut);margin:0 0 28px;font-size:13px}
+
+  .recent{margin-bottom:24px}
+  .recent-label{font-size:12px;color:var(--mut);margin-bottom:10px;font-weight:600;
+    text-transform:uppercase;letter-spacing:.04em}
+  .recent-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+  .recent-card{position:relative;flex:0 0 auto;min-width:180px;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:14px;text-decoration:none;color:inherit}
+  .recent-card:hover{border-color:var(--mut)}
+  .recent-del{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;
+    border:1px solid var(--line);background:var(--card);color:var(--mut);font-size:13px;line-height:1;
+    display:none;align-items:center;justify-content:center;cursor:pointer}
+  .recent-card:hover .recent-del{display:flex}
+  .recent-del:hover{background:var(--err);color:#fff;border-color:var(--err)}
+  .row-del{border:none;background:none;color:var(--mut);cursor:pointer;font-size:15px;padding:0 6px}
+  .row-del:hover{color:var(--err)}
+  .recent-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+  .recent-date{font-size:12px;color:var(--mut);margin-top:4px}
+  .recent-status{font-size:12px;color:var(--mut);margin-top:8px;display:flex;align-items:center}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px}
+  .drop{border:1.5px dashed var(--line);border-radius:12px;padding:48px 20px;text-align:center;
+    cursor:pointer;transition:.15s;}
+  .drop:hover,.drop.over{border-color:var(--txt);background:var(--card2);}
+  .drop .ic{font-size:38px;opacity:.55}
+  .drop .t{font-size:16px;margin-top:12px;font-weight:600}
+  .drop .h{color:var(--mut);font-size:13px;margin-top:6px}
+
+  .btn{border:1px solid var(--pri);border-radius:9px;padding:12px 26px;font-size:14px;font-weight:600;
+    cursor:pointer;color:var(--pri-text);background:var(--pri);transition:.15s;
+    text-decoration:none;display:inline-block;}
+  .btn:hover{background:var(--pri-hover);border-color:var(--pri-hover)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.ghost{background:none;color:var(--txt);border-color:var(--line)}
+  .btn.ghost:hover{background:var(--card2);border-color:var(--mut)}
+
+  .row{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:18px;flex-wrap:wrap}
+  .optrow{display:flex;gap:7px;align-items:center;justify-content:center;color:var(--mut);font-size:13px;margin-top:16px}
+  .bar{height:6px;background:var(--line2);border-radius:4px;overflow:hidden;margin-top:12px}
+  .bar>div{height:100%;width:0;background:var(--pri);transition:width .3s}
+  .stat{color:var(--mut);font-size:13px;margin-top:10px;text-align:center;min-height:18px}
+  .phase-row{display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px}
+
+  /* статусы: точка + текст, без цветных плашек */
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:7px;background:var(--mut);flex:0 0 auto}
+  .dot.ok{background:var(--ok)}
+  .dot.warn{background:var(--warn)}
+  .dot.err{background:var(--err)}
+  .dot.pulse{background:var(--pri)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line2)}
+  th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em;
+    position:sticky;top:0;background:var(--card)}
+  tr:last-child td{border-bottom:none}
+  tr.rowflag{background:var(--warnbg)}
+  .tblwrap{max-height:480px;overflow:auto;border:1px solid var(--line);border-radius:12px;margin-top:16px}
+
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;
+    align-items:center;justify-content:center;padding:20px;z-index:60}
+  .modal .box{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:24px;width:100%;max-width:560px;max-height:85vh;overflow:auto}
+  .modal h3{margin:0 0 14px;font-size:16px}
+  .modal input,.modal select{background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;
+    padding:9px 11px;color:var(--txt);font-size:14px}
+  .frow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .frow input{flex:1;min-width:120px}
+  .err{color:var(--err);font-size:13px;min-height:18px;margin-top:8px}
+  .ok{color:var(--ok);font-size:13px;min-height:18px;margin-top:8px}
+  .linkbtn{background:none;border:none;color:var(--mut);cursor:pointer;font-size:13px;padding:4px 6px}
+  .linkbtn:hover{color:var(--txt);text-decoration:underline}
+
+  .warn{margin-top:16px;padding:14px 16px;border-radius:10px;border:1px solid var(--warn);
+    background:var(--warnbg);color:var(--txt);font-size:13px}
+  .warn ul{margin:6px 0 0;padding-left:20px}
+  .warn li{margin:3px 0}
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <div class="brand">Clearance <b>AI</b></div>
+  <div class="navtabs" id="tabs">
+    <button class="navtab active" id="tabProcess">Обработка</button>
+    <button class="navtab hide" id="tabSourcing">Закупка (Китай)</button>
+  </div>
+  <div class="navright">
+    <button class="icon-btn" id="themeToggle" title="Тема">◐</button>
+    <div class="usermenu">
+      <button class="usermenu-btn" id="userMenuBtn"><span id="who"></span> <span class="chev">⌄</span></button>
+      <div class="usermenu-panel hide" id="userMenuPanel">
+        <button class="menuitem hide" id="btnStats">📊 Статистика</button>
+        <button class="menuitem hide" id="btnAdmin">👥 Пользователи</button>
+        <button class="menuitem" id="btnMy">🕘 Вся активность</button>
+        <button class="menuitem" id="btnPwd">🔑 Сменить пароль</button>
+        <button class="menuitem danger" id="btnLogout">Выйти</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="page">
+  <h1 class="title">Обработка инвойсов</h1>
+  <div class="sub">Перевод · поиск товаров · экспорт в закупочный шаблон</div>
+
+  <div class="recent hide" id="recentStrip"></div>
+
+  <div class="card" id="uploadCard">
+    <div class="drop" id="drop">
+      <div class="ic">＋</div>
+      <div class="t">Перетащите файлы сюда</div>
+      <div class="h">инвойс + пакинг-лист можно вместе · Excel (.xlsx .xlsm .xltx .xltm .xls) или .pdf · до 5 файлов по 40 МБ</div>
+    </div>
+    <input type="file" id="file" accept=".xlsx,.xlsm,.xltx,.xltm,.xls,.pdf" class="hide" multiple>
+    <label class="optrow" id="webSearchRow">
+      <input type="checkbox" id="webSearch"> Искать фото/ссылки/материал в интернете — <b style="color:var(--warn)">тратит баланс</b>. Выкл (по умолчанию) — бесплатно
+    </label>
+    <div class="row">
+      <button class="btn" id="go" disabled>Обработать</button>
+      <a class="btn ghost hide" id="tzTemplateBtn" href="/api/tz-template">Шаблон ТЗ</a>
+    </div>
+    <div class="stat" id="fname"></div>
+  </div>
+
+  <div class="card hide" id="procCard" style="margin-top:18px">
+    <div class="phase-row"><span class="dot pulse" id="phaseDot"></span><span id="phase">Обработка…</span></div>
+    <div class="bar"><div id="fill"></div></div>
+    <div class="stat" id="stat"></div>
+    <div class="row"><button class="btn ghost" id="cancelJob">Отменить</button></div>
+  </div>
+
+  <div class="card hide" id="resCard" style="margin-top:18px">
+    <div class="row" style="justify-content:space-between">
+      <div id="doneTitle" style="display:flex;align-items:center;font-weight:700">
+        <span class="dot ok" id="doneDot"></span><span id="doneText">Готово</span>
+        <span class="muted" id="rate" style="margin-left:8px;font-weight:400"></span>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn" id="dl">Скачать .xlsx</button>
+        <button class="btn ghost" id="again">Новый файл</button>
+      </div>
+    </div>
+    <div class="warn hide" id="warnBox"></div>
+    <div class="tblwrap"><table id="tbl"></table></div>
+  </div>
+</div>
+
+<div class="modal hide" id="demoModal">
+  <div class="box">
+    <h3>Демо-доступ исчерпан</h3>
+    <p class="muted">Бесплатный лимит обработок для демо-аккаунта закончился. Чтобы продолжить пользоваться сервисом, необходимо приобрести подписку.</p>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" onclick="closeModal('demoModal')">Понятно</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hide" id="pwdModal">
+  <div class="box">
+    <h3>Смена пароля</h3>
+    <label class="muted">Текущий пароль</label>
+    <div class="frow"><input id="pwOld" type="password"></div>
+    <label class="muted">Новый пароль</label>
+    <div class="frow"><input id="pwNew" type="password"></div>
+    <div class="err" id="pwMsg"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn ghost" onclick="closeModal('pwdModal')">Отмена</button>
+      <button class="btn" id="pwSave">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hide" id="adminModal">
+  <div class="box">
+    <h3>Пользователи</h3>
+    <div id="userList"></div>
+    <h3 style="margin-top:20px;font-size:15px">Создать пользователя</h3>
+    <div class="frow">
+      <input id="nuLogin" placeholder="логин">
+      <input id="nuPass" type="password" placeholder="пароль">
+      <select id="nuRole"><option value="user">пользователь</option><option value="admin">админ</option></select>
+      <label style="display:flex;align-items:center;gap:6px;color:var(--mut)"><input type="checkbox" id="nuBuyer"> Закупщик</label>
+      <button class="btn" id="nuCreate">Создать</button>
+    </div>
+    <div class="err" id="adminMsg"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn ghost" onclick="closeModal('adminModal')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hide" id="myModal">
+  <div class="box">
+    <h3>Мои результаты и активность</h3>
+    <div id="myBody" class="muted">Загрузка…</div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn ghost" onclick="closeModal('myModal')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hide" id="statsModal">
+  <div class="box" style="max-width:760px">
+    <h3>Статистика по учётным записям</h3>
+    <div id="statsBody" class="muted">Загрузка…</div>
+    <div id="statsDetail"></div>
+    <div class="row" style="justify-content:flex-end;margin-top:14px">
+      <button class="btn ghost" onclick="closeModal('statsModal')">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+let ME = null, MODE = 'process', picked = [];
+function closeModal(id){ $('#'+id).classList.add('hide'); }
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function ts(t){ return t ? new Date(t*1000).toLocaleString('ru-RU') : '—'; }
+
+// --- тема (light/dark, запоминается в localStorage) ---
+try {
+  const saved = localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', saved);
+  $('#themeToggle').onclick = function(){
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('theme', theme); } catch (e) {}
+  };
+} catch (e) {}
+
+// --- меню пользователя ---
+try {
+  $('#userMenuBtn').onclick = (e) => { e.stopPropagation(); $('#userMenuPanel').classList.toggle('hide'); };
+  document.addEventListener('click', () => $('#userMenuPanel').classList.add('hide'));
+} catch (e) {}
+
+function setMode(m){
+  MODE = m;
+  $('#tabProcess').classList.toggle('active', m==='process');
+  $('#tabSourcing').classList.toggle('active', m==='sourcing');
+  $('#resCard').classList.add('hide'); $('#procCard').classList.add('hide');
+  $('#go').textContent = m==='sourcing' ? 'Найти на 1688 и обработать' : 'Обработать';
+  $('#tzTemplateBtn').classList.toggle('hide', m!=='sourcing');
+  // в «Закупке» поиск в интернете (и фото) включён всегда — чекбокс не нужен
+  $('#webSearchRow').classList.toggle('hide', m==='sourcing');
+}
+$('#tabProcess').onclick = () => setMode('process');
+$('#tabSourcing').onclick = () => setMode('sourcing');
+
+async function loadMe(){
+  const r = await fetch('/api/me');
+  if (!r.ok){ location.href='/login'; return; }
+  ME = await r.json();
+  const buyerTag = ME.is_buyer && ME.role!=='admin' ? ' <span class="tag">закупщик</span>' : '';
+  $('#who').innerHTML = `${esc(ME.username)}` +
+    (ME.role==='admin' ? ' <span class="tag">админ</span>' : buyerTag);
+  if (ME.role==='admin'){ $('#btnAdmin').classList.remove('hide'); $('#btnStats').classList.remove('hide'); }
+  if (ME.is_buyer) $('#tabSourcing').classList.remove('hide');
+  loadRecent();
+}
+loadMe();
+
+const EVT = {login:'вход', process:'обработка', result:'результат', download:'скачивание', error:'ошибка'};
+
+// --- лента последних результатов ---
+async function loadRecent(){
+  try{
+    const s = await (await fetch('/api/my/history')).json();
+    const list = (s.results_list||[]).slice(0,6);
+    const box = $('#recentStrip');
+    if (!list.length){ box.classList.add('hide'); box.innerHTML=''; return; }
+    box.innerHTML = '<div class="recent-label">Недавние результаты</div><div class="recent-row">'
+      + list.map(r => `<a class="recent-card" href="/api/my/result/${encodeURIComponent(r.id)}">
+          <button type="button" class="recent-del" data-rid="${esc(r.id)}" title="Удалить из истории">✕</button>
+          <div class="recent-name">${esc(r.name)}</div>
+          <div class="recent-date">${ts(r.ts)}</div>
+          <div class="recent-status"><span class="dot ok"></span>готово</div>
+        </a>`).join('')
+      + '</div>';
+    box.classList.remove('hide');
+  } catch(e){}
+}
+$('#recentStrip').onclick = async (e) => {
+  const btn = e.target.closest('.recent-del');
+  if (!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  await fetch('/api/my/result/' + encodeURIComponent(btn.dataset.rid), { method:'DELETE' }).catch(()=>{});
+  loadRecent();
+};
+
+// --- Мои результаты / активность (для всех) ---
+async function loadMy(){
+  $('#myBody').innerHTML='Загрузка…';
+  const s = await (await fetch('/api/my/history')).json();
+  renderMy(s, '#myBody', '/api/my/result/', true);
+}
+$('#btnMy').onclick = () => { $('#myModal').classList.remove('hide'); loadMy(); };
+$('#myBody').onclick = async (e) => {
+  const btn = e.target.closest('.row-del');
+  if (!btn) return;
+  await fetch('/api/my/result/' + encodeURIComponent(btn.dataset.rid), { method:'DELETE' }).catch(()=>{});
+  loadMy(); loadRecent();
+};
+function renderMy(s, sel, dlbase, canDelete){
+  let h = `<div style="margin-bottom:10px">Запусков: <b>${s.runs||0}</b> · Результатов: <b>${s.results||0}</b> · Последний вход: ${ts(s.last_login)}</div>`;
+  h += '<b>Последние результаты:</b>';
+  if ((s.results_list||[]).length){
+    h += '<div class="tblwrap" style="max-height:200px"><table><tr><th>Файл</th><th>Когда</th><th>Скачать</th>' + (canDelete?'<th></th>':'') + '</tr>';
+    s.results_list.forEach(r => { h += `<tr><td>${esc(r.name)}</td><td>${ts(r.ts)}</td><td><a href="${esc(dlbase + encodeURIComponent(r.id))}">⬇ xlsx</a></td>`
+      + (canDelete ? `<td><button type="button" class="row-del" data-rid="${esc(r.id)}" title="Удалить из истории">✕</button></td>` : '') + '</tr>'; });
+    h += '</table></div>';
+  } else h += ' <span class="muted">пока нет</span>';
+  h += '<div style="margin-top:12px"><b>История действий:</b></div>';
+  h += '<div class="tblwrap" style="max-height:200px"><table><tr><th>Когда</th><th>Действие</th><th>Детали</th></tr>';
+  (s.events||[]).forEach(e => { h += `<tr><td>${ts(e.ts)}</td><td>${EVT[e.type]||e.type}</td><td>${esc(e.detail||'')}</td></tr>`; });
+  h += '</table></div>';
+  $(sel).innerHTML = h;
+}
+
+// --- Статистика (админ) ---
+$('#btnStats').onclick = async () => {
+  $('#statsModal').classList.remove('hide'); $('#statsDetail').innerHTML=''; $('#statsBody').innerHTML='Загрузка…';
+  const d = await (await fetch('/api/admin/activity')).json();
+  let h = `<div style="margin-bottom:10px;font-size:15px">Всего обработок за всё время: <b>${d.total_runs||0}</b> · с результатом: <b>${d.total_results||0}</b></div>`;
+  h += '<div class="tblwrap" style="max-height:300px"><table><tr><th>Учётка</th><th>Роль</th><th>Запусков</th><th>Результатов</th><th>Последний запуск</th></tr>';
+  (d.users||[]).forEach(u => {
+    const grp = (u.groups||[]).includes('Закупщик') ? ' <span class="badge">закупщик</span>' : '';
+    h += `<tr style="cursor:pointer" data-act="stat" data-user="${esc(u.username)}"><td><b>${esc(u.username)}</b>${grp}</td><td>${esc(u.role)}</td><td>${esc(u.runs)}</td><td>${esc(u.results)}</td><td>${ts(u.last_run)}</td></tr>`;
+  });
+  h += '</table></div><div class="muted" style="margin-top:6px">Нажми на учётку — история и её последние результаты.</div>';
+  $('#statsBody').innerHTML = h;
+};
+async function statUser(uname){
+  $('#statsDetail').innerHTML = 'Загрузка…';
+  const s = await (await fetch('/api/admin/activity/'+encodeURIComponent(uname))).json();
+  let wrap = document.createElement('div');
+  wrap.innerHTML = `<h3 style="margin-top:18px;font-size:16px">Учётка: ${esc(uname)}</h3><div id="statsUserBody"></div>`;
+  $('#statsDetail').innerHTML=''; $('#statsDetail').appendChild(wrap);
+  renderMy(s, '#statsUserBody', '/api/admin/result/'+encodeURIComponent(uname)+'/');
+}
+
+$('#btnLogout').onclick = async () => { await fetch('/api/logout',{method:'POST'}); location.href='/login'; };
+
+$('#btnPwd').onclick = () => { $('#pwMsg').textContent=''; $('#pwOld').value=''; $('#pwNew').value=''; $('#pwdModal').classList.remove('hide'); };
+$('#pwSave').onclick = async () => {
+  $('#pwMsg').textContent='';
+  const r = await fetch('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({old:$('#pwOld').value,new:$('#pwNew').value})});
+  const d = await r.json().catch(()=>({}));
+  if (r.ok){ $('#pwMsg').className='ok'; $('#pwMsg').textContent='Пароль изменён'; setTimeout(()=>closeModal('pwdModal'),900); }
+  else { $('#pwMsg').className='err'; $('#pwMsg').textContent=d.detail||'Ошибка'; }
+};
+
+$('#btnAdmin').onclick = () => { $('#adminMsg').textContent=''; loadUsers(); $('#adminModal').classList.remove('hide'); };
+async function loadUsers(){
+  const r = await fetch('/api/admin/users'); if(!r.ok) return;
+  const users = (await r.json()).users;
+  $('#userList').innerHTML = users.map(u => {
+    const isBuyer = u.groups && u.groups.indexOf('Закупщик')>=0;
+    const tags = (u.role==='admin'?' <span class="tag">админ</span>':'')
+      + (isBuyer?' <span class="badge">закупщик</span>':'');
+    const buyerBtn = u.role==='admin' ? ''
+      : `<button class="linkbtn" data-act="buyer" data-user="${esc(u.username)}" data-val="${!isBuyer}">${isBuyer?'убрать закупщика':'сделать закупщиком'}</button>`;
+    return `<div class="frow" style="justify-content:space-between;border-bottom:1px solid var(--line2);padding:8px 0">
+      <span><b>${esc(u.username)}</b>${tags}</span>
+      <span>
+        ${buyerBtn}
+        <button class="linkbtn" data-act="reset" data-user="${esc(u.username)}">сбросить пароль</button>
+        ${u.role!=='admin'?`<button class="linkbtn" style="color:var(--err)" data-act="del" data-user="${esc(u.username)}">удалить</button>`:''}
+      </span>
+    </div>`;
+  }).join('');
+}
+$('#nuCreate').onclick = async () => {
+  $('#adminMsg').className='err'; $('#adminMsg').textContent='';
+  const r = await fetch('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:$('#nuLogin').value,password:$('#nuPass').value,role:$('#nuRole').value,buyer:$('#nuBuyer').checked})});
+  const d = await r.json().catch(()=>({}));
+  if (r.ok){ $('#nuLogin').value=''; $('#nuPass').value=''; $('#nuBuyer').checked=false; $('#adminMsg').className='ok'; $('#adminMsg').textContent='Создан'; loadUsers(); }
+  else { $('#adminMsg').textContent = d.detail||'Ошибка'; }
+};
+async function setBuyer(username, val){
+  const r = await fetch('/api/admin/set-buyer',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username,buyer:val})});
+  if(r.ok){ loadUsers(); } else { const d=await r.json().catch(()=>({})); $('#adminMsg').className='err'; $('#adminMsg').textContent=d.detail||'Ошибка'; }
+}
+async function resetPass(username){
+  const np = prompt('Новый пароль для '+username+':'); if(!np) return;
+  const r = await fetch('/api/admin/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username,password:np})});
+  const d = await r.json().catch(()=>({}));
+  $('#adminMsg').className = r.ok?'ok':'err'; $('#adminMsg').textContent = r.ok?'Пароль обновлён':(d.detail||'Ошибка');
+}
+async function delUser(username){
+  if(!confirm('Удалить пользователя '+username+'?')) return;
+  const r = await fetch('/api/admin/users/'+encodeURIComponent(username),{method:'DELETE'});
+  const d = await r.json().catch(()=>({}));
+  if(r.ok){ loadUsers(); } else { $('#adminMsg').className='err'; $('#adminMsg').textContent=d.detail||'Ошибка'; }
+}
+let jobId = null, timer = null;
+
+const drop = $('#drop'), fileInput = $('#file');
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over');
+  if (e.dataTransfer.files.length) setFiles(e.dataTransfer.files); };
+fileInput.onchange = () => { if (fileInput.files.length) setFiles(fileInput.files); };
+
+const MAX_FILES = 5, MAX_MB = 40;
+function setFiles(list){
+  const all = Array.from(list);
+  picked = all.filter(f => /\.(xlsx|xlsm|xltx|xltm|xls|pdf)$/i.test(f.name));
+  const skipped = all.length - picked.length;
+  const big = picked.filter(f => f.size > MAX_MB * 1024 * 1024);
+  let err = '';
+  if (!picked.length) err = 'Нужен файл Excel (.xlsx .xlsm .xltx .xltm .xls) или .pdf';
+  else if (picked.length > MAX_FILES) err = `Не больше ${MAX_FILES} файлов за раз`;
+  else if (big.length) err = 'Больше ' + MAX_MB + ' МБ: ' + big.map(f => f.name).join(', ');
+  if (err){ picked = []; $('#fname').textContent = err; $('#go').disabled = true; return; }
+  $('#fname').textContent = '📎 ' + picked.map(f => f.name).join('  +  ')
+    + (skipped ? `  (пропущено неподходящих: ${skipped})` : '');
+  $('#go').disabled = false;
+}
+
+$('#go').onclick = async () => {
+  if (!picked.length) return;
+  $('#go').disabled = true;
+  $('#stat').style.color = '';   // сброс красного после предыдущей ошибки
+  const fd = new FormData();
+  picked.forEach(f => fd.append('files', f));
+  fd.append('sourcing', MODE==='sourcing' ? '1' : '0');
+  fd.append('web', $('#webSearch').checked ? '1' : '0');
+  const r = await fetch('/api/process', { method:'POST', body:fd });
+  if (r.status === 402){ $('#demoModal').classList.remove('hide'); $('#go').disabled=false; return; }
+  if (!r.ok){ const d = await r.json().catch(()=>({})); $('#fname').textContent = 'Ошибка загрузки: ' + (d.detail || r.status); $('#go').disabled=false; return; }
+  jobId = (await r.json()).job_id;
+  $('#cancelJob').disabled = false; $('#cancelJob').textContent = 'Отменить';
+  $('#procCard').classList.remove('hide');
+  $('#resCard').classList.add('hide');
+  timer = setInterval(poll, 1500); poll();
+};
+
+// ~45с / ~2 мин 15 с — грубая оценка, не точный таймер
+function fmtDuration(sec){
+  sec = Math.max(0, Math.round(sec));
+  if (sec < 60) return sec + ' с';
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return s ? `${m} мин ${s} с` : `${m} мин`;
+}
+
+const PHASE_DOT = {queued:'', parsing:'pulse', enriching:'pulse', sourcing:'pulse', done:'ok', error:'err'};
+async function poll(){
+  const r = await fetch('/api/status/' + jobId);
+  if (!r.ok) return;
+  const s = await r.json();
+  const phases = {queued:'В очереди…', parsing:'Распознаю товары…',
+    enriching:'Перевод и поиск товаров…', sourcing:'Поиск на китайских площадках…',
+    done:'Готово', error:'Ошибка'};
+  $('#phase').textContent = phases[s.status] || s.status;
+  $('#phaseDot').className = 'dot ' + (PHASE_DOT[s.status] || '');
+  const pct = s.total ? Math.round(s.current/s.total*100) : (s.status==='parsing'?15:5);
+  $('#fill').style.width = pct + '%';
+  let extra = s.total ? ` · ${s.current}/${s.total}` : '';
+  if (s.created && (s.status==='parsing' || s.status==='enriching' || s.status==='sourcing')){
+    const elapsed = Date.now()/1000 - s.created;
+    if (s.total && s.current > 0){
+      const left = elapsed * (s.total - s.current) / s.current;
+      extra += ` · осталось ~${fmtDuration(left)}`;
+    } else {
+      extra += ` · идёт ${fmtDuration(elapsed)}`;
+    }
+  }
+  $('#stat').textContent = s.message + extra;
+  if (s.status === 'done'){ clearInterval(timer); $('#cancelJob').disabled = true; showResult(s); }
+  if (s.status === 'error'){ clearInterval(timer); $('#stat').style.color='var(--err)'; $('#go').disabled=false; $('#cancelJob').disabled = true; }
+}
+
+$('#cancelJob').onclick = async () => {
+  if (!jobId) return;
+  $('#cancelJob').disabled = true; $('#cancelJob').textContent = 'Отменяю…';
+  await fetch('/api/cancel/' + jobId, { method:'POST' }).catch(()=>{});
+};
+
+async function showResult(s){
+  $('#procCard').classList.add('hide');
+  $('#resCard').classList.remove('hide');
+  $('#rate').textContent = s.rate ? '· ' + s.rate : '';
+  const pv = await (await fetch('/api/preview/' + jobId)).json();
+  const rows = pv.preview || [];
+  renderWarnings(pv.warnings || []);
+  loadRecent();
+  const src = rows.some(r => r.src);
+  let html = '<tr><th>#</th><th>Фото</th><th>Наименование (RU)</th><th>Кит.</th><th>Бренд</th>'
+    + '<th>Артикул</th><th>Кол-во</th><th>Ссылка</th><th>Сумма $</th>'
+    + (src ? '<th>1688 / Китай</th><th>Поставщик</th><th>Цена ¥</th><th>MOQ</th>' : '')
+    + '</tr>';
+  rows.forEach((it,i) => {
+    const url = safeUrl(it.url), photoUrl = safeUrl(it.photo);
+    const link = url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">ссылка ↗</a>` : '<span class="muted">—</span>';
+    const photo = photoUrl
+      ? `<a href="${esc(photoUrl)}" target="_blank" rel="noopener noreferrer"><img src="${esc(photoUrl)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px;background:var(--card2)" loading="lazy" onerror="this.style.display='none'"></a>`
+      : '<span class="muted">—</span>';
+    const rowCls = (it.no_translation || it.no_price) ? ' class="rowflag"' : '';
+    const nameTitle = it.no_translation ? ' title="нет перевода — показан исходный текст"' : '';
+    html += `<tr${rowCls}><td>${i+1}</td><td>${photo}</td><td${nameTitle}>${esc(it.name_ru)}</td><td>${esc(it.name_zh)}</td>`
+      + `<td>${esc(it.brand)}</td><td>${esc(it.article)}</td>`
+      + `<td>${esc(it.qty)} ${esc(it.unit)}</td><td>${link}</td><td>${it.total_usd === '' || it.total_usd == null ? '<span class="muted" title="валюта или курс неизвестны — см. предупреждения">—</span>' : esc(it.total_usd)}</td>`;
+    if (src) {
+      const s = it.src || {};
+      const cnUrl = safeUrl(s.china_url);
+      const cn = cnUrl ? `<a href="${esc(cnUrl)}" target="_blank" rel="noopener noreferrer">открыть ↗</a>` : '<span class="muted">—</span>';
+      html += `<td>${cn}</td><td>${esc(s.supplier)||'<span class="muted">—</span>'}</td>`
+        + `<td>${esc(s.price_cn)||'—'}</td><td>${esc(s.moq)||'—'}</td>`;
+    }
+    html += '</tr>';
+  });
+  $('#tbl').innerHTML = html;
+}
+function renderWarnings(list){
+  const box = $('#warnBox');
+  $('#doneText').textContent = list.length ? 'Готово, но не всё распознано' : 'Готово';
+  $('#doneTitle').style.color = list.length ? 'var(--warn)' : 'var(--ok)';
+  $('#doneDot').className = 'dot ' + (list.length ? 'warn' : 'ok');
+  if (!list.length){ box.classList.add('hide'); box.innerHTML = ''; return; }
+  box.innerHTML = `<b>Проверьте вручную (${list.length}):</b><ul>`
+    + list.map(w => `<li>${esc(w)}</li>`).join('')
+    + '</ul><div class="muted" style="margin-top:6px">Этот же список — на листе «Предупреждения» в скачанном файле.</div>';
+  box.classList.remove('hide');
+}
+// в href/src — только http(s) и свои картинки; javascript:, data: и прочее отбрасываем
+function safeUrl(u){
+  u = (u==null ? '' : String(u)).trim();
+  if (/^\/api\/img\/[0-9a-f]+\/\d+$/.test(u)) return u;
+  try { const p = new URL(u); return (p.protocol==='http:' || p.protocol==='https:') ? p.href : ''; }
+  catch(e){ return ''; }
+}
+// действия в списках пользователей: имя берём из data-атрибута, а не из JS-кода
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const u = el.dataset.user;
+  if (el.dataset.act==='stat') statUser(u);
+  else if (el.dataset.act==='buyer') setBuyer(u, el.dataset.val==='true');
+  else if (el.dataset.act==='reset') resetPass(u);
+  else if (el.dataset.act==='del') delUser(u);
+});
+
+$('#dl').onclick = () => location.href = '/api/result/' + jobId;
+$('#again').onclick = () => { $('#resCard').classList.add('hide'); $('#go').disabled=false; renderWarnings([]);
+  $('#stat').style.color=''; picked=[]; $('#fname').textContent=''; fileInput.value=''; };
+</script>
+</body>
+</html>

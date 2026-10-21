@@ -1,0 +1,7 @@
+{
+  "disabledMcpjsonServers": [
+    "claude-flow",
+    "ruv-swarm",
+    "flow-nexus"
+  ]
+}
