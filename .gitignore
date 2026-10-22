@@ -13,6 +13,9 @@ data/
 meta/env.txt
 app/uploads/
 
+# Примеры инвойсов с контактами клиентов — не коммитить
+primeri/
+
 # Local tooling / caches
 node_modules/
 __pycache__/
