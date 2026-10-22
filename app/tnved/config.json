@@ -1,0 +1,37 @@
+{
+  "_comment": "Пороги и веса вычисляемой уверенности (tnved/confidence.py). Калибровка — см. calibration.",
+  "calibrated": true,
+  "weights": {
+    "rank": 0.3,
+    "hint": 0.2,
+    "gap": 0.1,
+    "precedent": 0.3,
+    "missing": 0.2
+  },
+  "rank_scores": {
+    "1": 1.0,
+    "3": 0.6,
+    "10": 0.3
+  },
+  "thresholds": {
+    "high": 0.7,
+    "medium": 0.4,
+    "abstain": 0.15
+  },
+  "max_missing_to_answer": 3,
+  "limits": {
+    "heading_candidates": 12,
+    "retrieval_top": 10,
+    "leaf_cap": 60,
+    "notes_chars": 1200,
+    "notes_groups": 2,
+    "workers": 4,
+    "precedents": 4
+  },
+  "calibration": {
+    "date": "2026-10-22",
+    "set": "tests/golden_tnved/golden_tnved.csv, 142 подтверждённые строки (63 уникальных названия)",
+    "result": "score>=0.15: позиция верна 98% (обычный режим), >=0.3: 100%; точный код при score>=0.7: 20/20 (обычный режим, с прецедентами), в режиме новых товаров (--novel) high не выдаётся, при >=0.5 точный код 0/4",
+    "limitation": "малая выборка, много семейств-дубликатов; веса не оптимизировались, пороги выбраны по таблице точности по порогам"
+  }
+}

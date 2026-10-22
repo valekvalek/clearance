@@ -207,11 +207,14 @@ def test_classify_batch_caches_and_skips_second_llm_call(monkeypatch):
     monkeypatch.setattr(gemini, "chat", _fake_chat)
     monkeypatch.setattr(gemini, "API_KEY", "test")
 
-    r1 = tc.classify_batch([{"product_name": "светодиодный светильник", "description": None}])
+    # "светодиодные светильники" (мн.ч.) — не из tnved_synonyms_seed.py (в отличие
+    # от "светодиодный светильник", который стал реальным синонимом по итогам
+    # Фазы 1 и короткозамкнул бы классификацию до LLM, см. git history).
+    r1 = tc.classify_batch([{"product_name": "светодиодные светильники", "description": None}])
     assert calls["n"] == 1
     assert r1[0]["code"] == "9405420012"
 
-    r2 = tc.classify_batch([{"product_name": "светодиодный светильник", "description": None}])
+    r2 = tc.classify_batch([{"product_name": "светодиодные светильники", "description": None}])
     assert calls["n"] == 1, "второй вызов должен был взять результат из кэша"
     assert r2[0]["code"] == "9405420012"
 
@@ -247,3 +250,20 @@ def test_classify_empty_name():
     result = tc.classify("")
     assert result["code"] == ""
     assert result["needs_review"] is True
+
+
+def test_item_key_uses_all_info_but_not_url():
+    base = {"product_name": "Насос"}
+    assert tc.item_key(base) == "насос", "только название — ключ как раньше"
+    with_zh = {**base, "name_zh": "水泵", "material": "нержавеющая сталь", "description": "Погружной"}
+    assert tc.item_key(with_zh) != tc.item_key(base)
+    assert tc.item_key({**with_zh, "product_url": "https://a/1"}) == tc.item_key(with_zh)
+    assert tc.item_key({**base, "material": "уточняется"}) == "насос", "заглушка материала не считается"
+
+
+def test_prompt_includes_chinese_name_and_link():
+    text = tc._build_user_prompt([{
+        "product_name": "Насос", "name_zh": "水泵", "material": "уточняется",
+        "description": "Погружной насос", "product_url": "https://example.com/p/1", "candidates": []}])
+    assert "水泵" in text and "https://example.com/p/1" in text and "Погружной насос" in text
+    assert "Материал" not in text

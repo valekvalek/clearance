@@ -44,12 +44,100 @@ CREATE TABLE IF NOT EXISTS classify_cache (
     needs_review INTEGER NOT NULL DEFAULT 1
 );
 """
+# Официальная выгрузка ФНС (tnved.db, см. build_tnved_db.py) с 2017 года
+# содержит ТОЛЬКО 10-значные листовые коды в виде обрывков фразы
+# ("- - - - прочие") — текст промежуточных подпозиций (6/8 знаков: "лампы
+# узконаправленного света", "из недрагоценных металлов" и т.п.) в исходных
+# файлах ФНС отсутствует физически (проверено вручную на архиве classifer'а,
+# см. историю коммита). Без этого контекста LLM видит только общее название
+# товарной позиции (4 знака) + обрывок листа и путает соседние подпозиции
+# (пример: PWM-светильник улетел в "неэлектрические" 9405.50, подводный
+# линейный LED-светильник — в "потолочные/настенные" 9405.11 вместо верной
+# "лампы узконаправленного света и прочие" 9405.4x).
+#
+# tnved_subheading_titles — куратируемый вручную (НЕ генерируется автоматически
+# из данных ФНС) справочник текстов подпозиций по префиксу кода. Заполняем
+# ТОЛЬКО уровнями, в формулировке которых уверены по официальной номенклатуре
+# ТН ВЭД ЕАЭС — остальное не угадываем, чтобы не плодить новые ошибки вместо
+# старых. Не попадает под DROP TABLE в build_tnved_db.py — переживает
+# пересборку tnved_codes/tnved_fts.
+_SUBHEADING_SCHEMA = """
+CREATE TABLE IF NOT EXISTS tnved_subheading_titles (
+    prefix TEXT PRIMARY KEY,
+    title TEXT NOT NULL
+);
+"""
 
 
 def _connect():
     conn = sqlite3.connect(DB_PATH)
     conn.execute(_CACHE_SCHEMA)
+    conn.execute(_SUBHEADING_SCHEMA)
+    try:  # расширения результата v2 (missing_attributes, rule_ref, ...) — JSON
+        conn.execute("ALTER TABLE classify_cache ADD COLUMN extra_json TEXT NOT NULL DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
     return conn
+
+
+def _tree_path_title(conn, code: str) -> str:
+    """Путь по дереву подпозиций ТН ВЭД из tnved_tree (импорт стороннего
+    скрейпа alta.ru, см. import_tnved_tree.py) — явный обход parent_code от
+    родителя кода до корня, тексты от общего к частному. Леафовый узел самого
+    code НЕ включается — его обрывок уже отдельно показан как cand['name'].
+    Если tnved_tree не импортирована или код в ней отсутствует (например,
+    редакция классификатора разошлась с датой скрейпа) — пустая строка, без
+    выдумывания; тогда _path_title откатывается на curated-справочник."""
+    try:
+        row = conn.execute(
+            "SELECT parent_code FROM tnved_tree WHERE code = ?", (code,)
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return ""  # таблицы tnved_tree нет — импорт не выполнялся
+    if not row:
+        return ""
+    chain = []
+    seen = set()
+    parent = row[0]
+    while parent and parent not in seen:
+        seen.add(parent)
+        r = conn.execute(
+            "SELECT parent_code, title FROM tnved_tree WHERE code = ?", (parent,)
+        ).fetchone()
+        if not r:
+            break
+        title = (r[1] or "").strip().rstrip(":").strip()
+        if title:
+            chain.append(title)
+        parent = r[0]
+    chain.reverse()
+    return " / ".join(chain)
+
+
+def _curated_path_title(conn, code: str) -> str:
+    """Склеивает тексты всех известных (curated, см. tnved_subheading_seed.py)
+    предков кода по длине префикса от короткого к длинному, напр.
+    '9405' -> '94051' -> '9405110'. Фолбэк для случаев, когда tnved_tree
+    (основной источник, см. _tree_path_title) не покрывает код. Коды без
+    curated-предков возвращают пустую строку — деградация до прежнего
+    поведения (только heading_name), без выдумывания текста."""
+    parts = []
+    for ln in range(5, len(code)):
+        row = conn.execute(
+            "SELECT title FROM tnved_subheading_titles WHERE prefix = ?",
+            (code[:ln],),
+        ).fetchone()
+        if row:
+            parts.append(row[0])
+    return " / ".join(parts)
+
+
+def _path_title(conn, code: str) -> str:
+    """Текст промежуточных подпозиций для кода: приоритет — полное дерево
+    alta.ru (tnved_tree, покрывает все товарные позиции), фолбэк — узкий
+    curated-справочник (tnved_subheading_titles, только то, что проверено
+    вручную без дерева, см. _curated_path_title)."""
+    return _tree_path_title(conn, code) or _curated_path_title(conn, code)
 
 
 def normalize(text: str) -> str:
@@ -60,6 +148,27 @@ def normalize(text: str) -> str:
     text = re.sub(r"[^\w\s]", " ", text, flags=re.UNICODE)
     text = re.sub(r"\s+", " ", text).strip()
     return text
+
+
+def clean_material(material) -> str:
+    """Материал для классификации: заглушка «уточняется» (её ставит enrich.py,
+    когда материал не найден) — не сведения о товаре, отбрасываем."""
+    m = (material or "").strip()
+    return "" if m.lower() in ("", "уточняется", "не указан", "нет данных") else m
+
+
+def item_key(it: dict) -> str:
+    """Ключ кэша: нормализованное название + (если есть) китайское название,
+    материал и описание — один и тот же русский заголовок («Насос») с разной
+    информацией о товаре не должен делить результат. Ссылка в ключ не входит.
+    Для товара только с названием совпадает с normalize(название)."""
+    parts = [normalize(it.get("product_name"))]
+    for v in (it.get("name_zh"), clean_material(it.get("material")),
+              (it.get("description") or "")[:300]):
+        n = normalize(v)
+        if n:
+            parts.append(n)
+    return " | ".join(parts) if parts[0] else ""
 
 
 def _stem(word: str) -> str:
@@ -79,6 +188,24 @@ def _stem(word: str) -> str:
     return word
 
 
+# Короткие служебные слова (предлоги/союзы), которые ПОЛНОСТЬЮ совпадают с
+# частым фрагментом листовых наименований ТН ВЭД вида "- для медицинских
+# целей", "- для гражданских воздушных судов" и т.п. — такой фрагмент
+# встречается в сотнях кодов по всем товарным позициям классификатора. Без
+# фильтрации один OR-терм "для"* в запросе "светильник ДЛЯ фонтана" забивал
+# top-TOP_K кандидатов этим медицинским/авиационным мусором и вытеснял
+# релевантные "- - - - прочие" коды из выдачи ещё до LLM-шага (найдено на
+# реальном кейсе: "Светильник для фонтана PWM" получал в кандидатах только
+# "для медицинских целей" и общий 9405.50, без единого подходящего "прочие").
+# Список — не лемматизация, просто частотные предлоги/союзы/частицы русского
+# языка, которые сами по себе не несут классифицирующего смысла товара.
+_STOPWORDS = frozenset((
+    "для", "и", "с", "со", "от", "на", "по", "из", "без", "под", "над",
+    "при", "об", "о", "к", "ко", "за", "до", "не", "или", "a", "an", "the",
+    "for", "with", "and", "or",
+))
+
+
 def _fts_candidates(conn, query: str, limit: int = TOP_K) -> list[dict]:
     q = normalize(query)
     if not q:
@@ -88,7 +215,8 @@ def _fts_candidates(conn, query: str, limit: int = TOP_K) -> list[dict]:
     # справочнике бренда нет, и AND-запрос по ВСЕМ словам не даст ни одного
     # совпадения. OR + ранжирование по bm25 находит лучшее совпадение по
     # смысловым (русским) словам, игнорируя "шумовые" непонятные токены.
-    terms = [f'"{_stem(w)}"*' for w in q.split() if w]
+    # Стоп-слова исключаем ДО построения термов — см. _STOPWORDS выше.
+    terms = [f'"{_stem(w)}"*' for w in q.split() if w and w not in _STOPWORDS]
     if not terms:
         return []
     match = " OR ".join(terms)
@@ -102,7 +230,8 @@ def _fts_candidates(conn, query: str, limit: int = TOP_K) -> list[dict]:
         # запрос с одними стоп-словами/символами может не распарситься FTS5 — не кандидат
         return []
     return [
-        {"code": r[0], "name": r[1], "group_name": r[2], "heading_name": r[3]}
+        {"code": r[0], "name": r[1], "group_name": r[2], "heading_name": r[3],
+         "path_title": _path_title(conn, r[0])}
         for r in rows
     ]
 
@@ -156,10 +285,14 @@ def _build_user_prompt(batch: list[dict]) -> str:
     for i, item in enumerate(batch):
         lines.append(f"### Товар {i}")
         lines.append(f"Название: {item['product_name']}")
-        if item.get("material"):
+        if item.get("name_zh"):
+            lines.append(f"Название (кит.): {item['name_zh']}")
+        if clean_material(item.get("material")):
             lines.append(f"Материал: {item['material']}")
         if item.get("description"):
             lines.append(f"Описание: {item['description']}")
+        if item.get("product_url"):
+            lines.append(f"Ссылка на товар: {item['product_url']}")
         if item["candidates"]:
             lines.append("Кандидаты:")
             for ci, cand in enumerate(item["candidates"]):
@@ -169,7 +302,13 @@ def _build_user_prompt(batch: list[dict]) -> str:
                 # 4 знака) как контекст — без него можно спутать, например,
                 # локомотивы и светильники, у которых совпал фрагмент текста.
                 heading = cand.get("heading_name") or ""
-                ctx = f" [{heading}]" if heading else ""
+                path = cand.get("path_title") or ""
+                # path_title (curated, см. _path_title) — текст промежуточных
+                # подпозиций между товарной позицией и листовым кодом; когда
+                # для префикса кода нет curated-записи, остаётся "" и формат
+                # деградирует до прежнего (только heading_name) без выдумывания.
+                ctx_parts = [p for p in (heading, path) if p]
+                ctx = f" [{' / '.join(ctx_parts)}]" if ctx_parts else ""
                 lines.append(f"  [{ci}] {cand['code']} — {cand['name']}{ctx}")
         else:
             lines.append("Кандидаты: нет")
@@ -260,6 +399,27 @@ def _classify_llm_batch(conn, batch: list[dict]) -> tuple[dict, set]:
     return results, failed_keys
 
 
+from tnved_synonyms_seed import EXACT_SYNONYMS, KEYWORD_SYNONYMS
+
+_EXACT_SYNONYMS_BY_KEY = {normalize(s["pattern"]): s for s in EXACT_SYNONYMS}
+
+
+def _match_synonym(key: str) -> dict | None:
+    """Быстрый патч к точности (см. tnved_synonyms_seed.py): проверяется ДО
+    похода в FTS/LLM. key — уже normalize()-нормализованное название. Коды
+    здесь не гадаются — только устойчивые паттерны с ≥2 независимыми
+    подтверждениями из golden-набора (см. docstring tnved_synonyms_seed.py).
+    Возвращает dict в формате classify_batch-результата или None."""
+    exact = _EXACT_SYNONYMS_BY_KEY.get(key)
+    if exact:
+        return exact
+    words = set(key.split())
+    for kw in KEYWORD_SYNONYMS:
+        if all(w in key for w in kw["all_of"]) and any(w in key for w in kw["any_of"]):
+            return kw
+    return None
+
+
 def classify(product_name: str, description: str | None = None) -> dict:
     """Классификация одного товара. Для массовой обработки используйте
     classify_batch — он не делает отдельный вызов LLM на каждую строку."""
@@ -267,48 +427,90 @@ def classify(product_name: str, description: str | None = None) -> dict:
     return res[0]
 
 
-def classify_batch(items: list[dict]) -> list[dict]:
+def classify_batch(items: list[dict], use_cache: bool = True,
+                   use_synonyms: bool = True, pipeline: str | None = None) -> list[dict]:
     """items: список {"product_name": str, "description": str|None,
     "material": str|None}. material — опционально, если есть у вызывающей
     стороны (после enrich.py), используется и в FTS-поиске кандидатов, и в
     промпте LLM — материал часто прямо указывает на товарную позицию.
     Возвращает список dict (тот же порядок): code, description, confidence,
     reason, needs_review. Кэш — по normalize(product_name); повторный вызов
-    для уже закэшированных названий НЕ обращается к LLM."""
+    для уже закэшированных названий НЕ обращается к LLM.
+    use_cache=False / use_synonyms=False — для честной оценки (tnved/evaluate.py):
+    без чтения и записи кэша и без таблицы синонимов, собранной из эталона.
+    pipeline: "v1" (FTS по листьям + LLM) или "v2" (tnved/v2.py: атрибуты, позиция, лист,
+    вычисляемая уверенность); по умолчанию env TNVED_PIPELINE, иначе v1. Результаты v2 кэшируются
+    отдельно (ключ с префиксом "v2:") и содержат доп. поля (missing_attributes, rule_ref, ...)."""
     if not items:
         return []
+    use_v2 = (pipeline or os.getenv("TNVED_PIPELINE", "v1")) == "v2"
     with _LOCK:
         conn = _connect()
         try:
-            keys = [normalize(it["product_name"]) for it in items]
+            name_keys = [normalize(it["product_name"]) for it in items]
+            keys = [item_key(it) for it in items]
             out = [None] * len(items)
             to_classify = []  # (index, key, product_name, description)
-            for i, (it, key) in enumerate(zip(items, keys)):
+            for i, (it, key, nkey) in enumerate(zip(items, keys, name_keys)):
                 if not key:
                     out[i] = {"code": "", "description": "", "confidence": "low",
                               "reason": "пустое название товара", "needs_review": True}
                     continue
+                syn = _match_synonym(nkey) if use_synonyms else None
+                if use_synonyms and not syn:  # подтверждённые решения (tnved/feedback.py)
+                    from tnved import feedback as _fb
+                    ex = _fb.exact(conn, nkey)
+                    if ex:
+                        syn = {"code": ex[0], "evidence": ex[1]}
+                if syn:
+                    name = _code_exists(conn, syn["code"])
+                    out[i] = {
+                        "code": syn["code"], "description": name or "",
+                        "confidence": "high", "needs_review": False,
+                        "reason": f"синоним (подтверждено {syn['evidence']}x в эталоне)",
+                    }
+                    continue
                 cached = conn.execute(
-                    "SELECT code, description, confidence, reason, needs_review "
-                    "FROM classify_cache WHERE norm_key = ?", (key,),
-                ).fetchone()
+                    "SELECT code, description, confidence, reason, needs_review, extra_json "
+                    "FROM classify_cache WHERE norm_key = ?", (("v2:" + key) if use_v2 else key,),
+                ).fetchone() if use_cache else None
                 if cached:
                     out[i] = {
                         "code": cached[0], "description": cached[1],
                         "confidence": cached[2], "reason": cached[3],
                         "needs_review": bool(cached[4]),
                     }
+                    if cached[5]:
+                        out[i].update(json.loads(cached[5]))
                 else:
                     to_classify.append((i, key, it["product_name"], it.get("description"),
                                         it.get("material")))
 
-            if to_classify:
+            if to_classify and use_v2:
+                from tnved import v2 as _v2
+                res = _v2.classify_items([items[i] for i, *_ in to_classify])
+                rows = []
+                for (i, key, *_), r in zip(to_classify, res):
+                    out[i] = r
+                    if not r.get("failed"):
+                        extra = {k: v for k, v in r.items() if k not in (
+                            "code", "description", "confidence", "reason", "needs_review")}
+                        rows.append(("v2:" + key, r["code"], r["description"], r["confidence"],
+                                     r["reason"], int(r["needs_review"]),
+                                     json.dumps(extra, ensure_ascii=False)))
+                if rows and use_cache:
+                    conn.executemany(
+                        "INSERT OR REPLACE INTO classify_cache(norm_key,code,description,confidence,"
+                        "reason,needs_review,extra_json) VALUES (?,?,?,?,?,?,?)", rows)
+                    conn.commit()
+            elif to_classify:
                 batch = []
                 for i, key, name, desc, material in to_classify:
-                    cands = _candidates_with_material(conn, name, material)
+                    cands = _candidates_with_material(conn, name, clean_material(material))
                     batch.append({
                         "_key": key, "product_name": name, "description": desc,
                         "material": material, "candidates": cands,
+                        "name_zh": items[i].get("name_zh"), "product_url": items[i].get("product_url"),
                     })
                 llm_results, failed_keys = _classify_llm_batch(conn, batch)
                 to_cache = []
@@ -331,7 +533,7 @@ def classify_batch(items: list[dict]) -> list[dict]:
                     if key not in failed_keys:
                         to_cache.append((key, b["code"], b["description"], b["confidence"],
                                          b["reason"], int(b["needs_review"])))
-                if to_cache:
+                if to_cache and use_cache:
                     conn.executemany(
                         "INSERT OR REPLACE INTO classify_cache"
                         "(norm_key,code,description,confidence,reason,needs_review) "

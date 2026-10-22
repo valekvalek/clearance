@@ -8,12 +8,10 @@
 то есть ещё не отменённые ни одной последующей редакцией.
 
 Файлы архива (кодировка cp866, разделитель "|"):
-  TNVED1.TXT — разделы (не используется: официальный машиночитаемый файл не
-               даёт связи раздел -> группы, поэтому иерархию "раздел" не
-               заполняем, чтобы не придумывать её самостоятельно)
-  TNVED2.TXT — группы (2 знака):     группа|???|наименование|заметки|с|по|
-               (структура содержит доп. служебное поле — парсим по последним
-               двум датам и наименованию по индексу, см. _parse_level)
+  TNVED1.TXT — разделы: не используется здесь (примечания к разделам и группам
+               импортирует import_tnved_notes.py)
+  TNVED2.TXT — группы (2 знака):     раздел|группа|наименование|примечания|с|по|
+               (первые два поля — раздел и группа, см. разбор в build())
   TNVED3.TXT — товарные позиции (4 знака): группа|позиция|наименование|с|по|
   TNVED4.Txt — подсубпозиции (10 знаков): группа|позиция|подпозиция(6)|наименование|с|по|
 
@@ -65,6 +63,13 @@ CREATE TABLE tnved_codes (
 DROP TABLE IF EXISTS tnved_fts;
 CREATE VIRTUAL TABLE tnved_fts USING fts5(
     code UNINDEXED, name, group_name, heading_name
+);
+-- Куратируемый вручную справочник текстов промежуточных подпозиций (6/8
+-- знаков), которых НЕТ в выгрузке ФНС (см. tnved_classifier.py:_path_title).
+-- Без DROP TABLE — пересборка tnved_codes/tnved_fts не затирает эти записи.
+CREATE TABLE IF NOT EXISTS tnved_subheading_titles (
+    prefix TEXT PRIMARY KEY,
+    title TEXT NOT NULL
 );
 """
 
@@ -125,7 +130,11 @@ def build(db_path: str = DEFAULT_DB, source_url: str = SOURCE_URL) -> dict:
     edition_date = _header_date(tnved4)
     print(f"✅ Редакция классификатора (ФНС России): {edition_date}")
 
-    groups = _parse_level(tnved2, 1)       # код группы (2 знака) -> (имя, дата_с)
+    # Первые два поля TNVED2 — раздел и группа; код группы — второе поле, поэтому
+    # разбираем с двумя полями кода (раздел+группа) и берём последние 2 знака.
+    # Раньше разбор шёл по одному полю: ключом становился номер РАЗДЕЛА, а
+    # "наименованием" — номер группы, из-за чего group_name был пустым или цифрами.
+    groups = {code[2:]: v for code, v in _parse_level(tnved2, 2).items()}
     headings = _parse_level(tnved3, 2)     # код позиции (4 знака) -> (имя, дата_с)
     codes = _parse_level(tnved4, 3)        # 10-значный код -> (имя, дата_с)
     print(f"✅ Разобрано: групп {len(groups)}, позиций {len(headings)}, "
@@ -150,7 +159,12 @@ def build(db_path: str = DEFAULT_DB, source_url: str = SOURCE_URL) -> dict:
             heading_name = headings.get(heading_code, ("", ""))[0]
             rows.append((code, name, group_code, group_name, heading_code,
                          heading_name, date_from))
-            fts_rows.append((code, name, group_name, heading_name))
+            # group_name в FTS-индекс НЕ кладём (колонка остаётся пустой): после
+            # исправления разбора групп длинные названия групп ("оборудование",
+            # "аппаратура") давали ложные совпадения — на эталоне (63 названия)
+            # попадание нужной товарной позиции в топ-15 кандидатов упало с 24 до 23,
+            # точного кода — с 8 до 6; с пустой колонкой метрика прежняя.
+            fts_rows.append((code, name, "", heading_name))
         conn.executemany(
             "INSERT INTO tnved_codes(code,name,group_code,group_name,"
             "heading_code,heading_name,valid_from) VALUES (?,?,?,?,?,?,?)",
@@ -168,6 +182,13 @@ def build(db_path: str = DEFAULT_DB, source_url: str = SOURCE_URL) -> dict:
                      (datetime.utcnow().isoformat(timespec="seconds") + "Z",))
         conn.execute("INSERT OR REPLACE INTO meta(key,value) VALUES ('code_count',?)",
                      (str(len(rows)),))
+        # tnved_subheading_titles реseed'ится из tnved_subheading_seed.py при
+        # каждой пересборке — файл (не БД) источник правды, см. его docstring.
+        from tnved_subheading_seed import SUBHEADING_TITLES
+        conn.executemany(
+            "INSERT OR REPLACE INTO tnved_subheading_titles(prefix,title) VALUES (?,?)",
+            list(SUBHEADING_TITLES.items()),
+        )
         conn.commit()
         if skipped:
             print(f"⚠ Пропущено (не 10 цифр / пустое имя): {skipped}")
