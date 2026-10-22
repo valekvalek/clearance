@@ -1,4 +1,5 @@
 # Ruflo local secrets and runtime data
+.venv/
 .venv-win/
 .venv-mac/
 .env
