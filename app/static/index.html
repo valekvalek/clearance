@@ -4,302 +4,467 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
-<title>Clearance AI — обработка инвойсов</title>
+<title>Clearance AI · обработка инвойсов</title>
 <style>
-  :root{
-    --bg:#FAFAFA;--card:#FFFFFF;--card2:#F5F5F6;--line:#E5E5E5;--line2:#EFEFEF;
-    --txt:#111113;--mut:#6B6B70;--input-bg:#FFFFFF;--input-border:#D8D8DC;
-    --pri:#111113;--pri-text:#FFFFFF;--pri-hover:#000000;
-    --ok:#16A34A;--warn:#B45309;--warnbg:rgba(180,83,9,.08);--err:#DC2626;
-  }
-  :root[data-theme="dark"]{
-    --bg:#0B0B0C;--card:#17171A;--card2:#1C1C1F;--line:#2A2A2E;--line2:#232326;
-    --txt:#F2F2F3;--mut:#9A9AA2;--input-bg:#101012;--input-border:#333338;
-    --pri:#F2F2F3;--pri-text:#0B0B0C;--pri-hover:#FFFFFF;
-    --ok:#4ADE80;--warn:#FBBF24;--warnbg:rgba(251,191,36,.08);--err:#F87171;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--txt);
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-    transition:background .15s,color .15s;}
-  a{color:inherit}
-  .hide{display:none !important}
-  .muted{color:var(--mut)}
+/* Стиль: taste-skill, app style "framed-sheet" (seed 1762273576). Тонированная L-рамка
+   (боковое меню), работа на белом листе с отступом 8px от правого и нижнего края, без теней.
+   Цвет только на данных и статусах; лицо продукта — код ТН ВЭД в IBM Plex Mono по уровням. */
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400 600;font-display:swap;src:url(/fonts/IBMPlexSans-var-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:400 600;font-display:swap;src:url(/fonts/IBMPlexSans-var-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/IBMPlexMono-400-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116} /* taste-skill-ignore: шрифт кодов ТН ВЭД */
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url(/fonts/IBMPlexMono-400-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD} /* taste-skill-ignore: шрифт кодов ТН ВЭД */
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/IBMPlexMono-500-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116} /* taste-skill-ignore: шрифт кодов ТН ВЭД */
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/IBMPlexMono-500-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD} /* taste-skill-ignore: шрифт кодов ТН ВЭД */
 
-  /* ---------- navbar ---------- */
-  .navbar{display:flex;align-items:center;gap:20px;padding:14px 28px;border-bottom:1px solid var(--line);
-    position:sticky;top:0;background:var(--bg);z-index:40;}
-  .brand{font-size:17px;font-weight:700;letter-spacing:-.02em;white-space:nowrap}
-  .brand b{font-weight:800}
-  .navtabs{display:flex;gap:4px;margin:0 auto}
-  .navtab{background:none;border:1px solid transparent;color:var(--mut);border-radius:8px;
-    padding:8px 16px;font-size:14px;font-weight:600;cursor:pointer;}
-  .navtab.active{color:var(--txt);background:var(--card2);border-color:var(--line)}
-  .navright{display:flex;align-items:center;gap:8px}
-  .icon-btn{background:none;border:1px solid var(--line);border-radius:8px;width:32px;height:32px;
-    cursor:pointer;color:var(--mut);font-size:14px;display:flex;align-items:center;justify-content:center}
-  .icon-btn:hover{color:var(--txt)}
-  .usermenu{position:relative}
-  .usermenu-btn{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 10px;
-    cursor:pointer;color:var(--txt);font-size:13px;display:flex;align-items:center;gap:6px}
-  .usermenu-btn .chev{color:var(--mut);font-size:11px}
-  .usermenu-panel{position:absolute;right:0;top:calc(100% + 6px);background:var(--card);
-    border:1px solid var(--line);border-radius:12px;min-width:200px;padding:6px;z-index:50}
-  .menuitem{display:block;width:100%;text-align:left;background:none;border:none;border-radius:7px;
-    padding:9px 10px;font-size:13px;color:var(--txt);cursor:pointer}
-  .menuitem:hover{background:var(--card2)}
-  .menuitem.danger{color:var(--err)}
-  .tag{font-size:10px;background:var(--pri);color:var(--pri-text);padding:2px 7px;border-radius:7px}
-  .badge{font-size:10px;background:var(--card2);border:1px solid var(--line);color:var(--mut);
-    padding:1px 7px;border-radius:7px;margin-left:6px}
+:root{
+  --ground:#f9fbfc;--surface:#ffffff;--raised:#f4f6f8;--active:#ebedee;--border:#e8eaec;--rule:#f0f1f2;
+  --control:#cdced1;--text:#131416;--muted:#5d5f60;--faint:#6b6d6e;
+  --accent:#1b6c80;--primary:#131416;--primary-ink:#ffffff;
+  --positive:#1e7b4f;--negative:#c4242a;--warning:#92400e;
+  --pill-positive-bg:#dcfae5;--pill-positive-ink:#04250e;
+  --pill-negative-bg:#ffedea;--pill-negative-ink:#831c1e;
+  --pill-warning-bg:#fffbeb;--pill-warning-ink:#92400e;
+  --pill-neutral-bg:#ebedee;--pill-neutral-ink:#353736;
+  --font:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace; /* taste-skill-ignore: моно только для кодов ТН ВЭД (лицо продукта по листу стиля) */
+  --fs-title:22px;--fs-section:16px;--fs-body:14px;--fs-small:12px;
+  --radius-card:8px;--radius-control:6px;--radius-sheet:16px;--sheet-inset:8px;
+  --sidebar-width:228px;--gap:24px;--pad:24px;--control-height:32px;--row-height:48px;
+  --ease-out:cubic-bezier(0.22,1,0.36,1);--t-hover:150ms;--t-ui:200ms;
+}
+:root[data-theme="dark"]{
+  --ground:#0c0d0e;--surface:#151718;--raised:#1d2022;--active:#25292b;--border:#25292b;--rule:#1d2022;
+  --control:#3c4144;--text:#f2f3f3;--muted:#a9adaf;--faint:#959a9c;
+  --accent:#5fb3c8;--primary:#f2f3f3;--primary-ink:#0c0d0e;
+  --positive:#3fc07a;--negative:#e5566f;--warning:#e5a93b;
+  --pill-positive-bg:#172a1d;--pill-positive-ink:#3fc07a;
+  --pill-negative-bg:#2c1a20;--pill-negative-ink:#e5566f;
+  --pill-warning-bg:#2b2414;--pill-warning-ink:#e5a93b;
+  --pill-neutral-bg:#25292b;--pill-neutral-ink:#f2f3f3;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--ground);color:var(--text);font:var(--fs-body)/20px var(--font);-webkit-font-smoothing:antialiased}
+h1,h2,h3,p,ul{margin:0}
+button,input,select{font:inherit;color:inherit}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+table,.num{font-variant-numeric:tabular-nums}
+.hide{display:none !important}
+.muted{color:var(--muted)}
+svg.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 
-  /* ---------- page ---------- */
-  .page{max-width:1040px;margin:0 auto;padding:36px 24px 60px}
-  h1.title{font-size:22px;margin:0 0 2px;font-weight:700;letter-spacing:-.01em}
-  .sub{color:var(--mut);margin:0 0 28px;font-size:13px}
+/* ---------- оболочка: рамка (боковое меню) + лист ----------
+   Сетка: 228px меню + лист. Лист отстоит на 8px сверху, справа и снизу (--sheet-inset), примыкает к меню слева.
+   Внутри листа 24px поля; рабочая сетка 12 колонок с шагом 24: основной блок 8 колонок, правый 4. */
+.app{display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);min-height:100svh}
+.sidebar{position:sticky;top:0;height:100svh;display:flex;flex-direction:column;gap:2px;padding:16px 12px;overflow:auto}
+.brand{display:flex;align-items:center;gap:10px;height:40px;padding:0 8px;margin-bottom:12px;font-weight:600;font-size:15px}
+.brand svg{width:22px;height:22px;flex:none}
+.group-label{margin:20px 8px 6px;font-size:var(--fs-small);color:var(--faint)}
+.nav-item{display:flex;align-items:center;gap:10px;height:32px;padding:0 8px;border:0;border-radius:8px;background:none;
+  color:var(--muted);text-align:left;cursor:pointer;width:100%;transition:background-color var(--t-hover) ease,color var(--t-hover) ease}
+.nav-item:hover{background:var(--raised);color:var(--text)}
+.nav-item.current{background:var(--active);color:var(--text)}
+.sidebar .bottom{margin-top:auto;display:grid;gap:2px}
+.account-row{display:flex;align-items:center;gap:10px;padding:8px;margin-top:8px}
+.avatar{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;flex:none;background:#d7ebf0;color:#0e3c47;font-weight:600;font-size:12px}
+.account-row .who{min-width:0;line-height:18px}
+.account-row .who b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.account-row .role{font-size:var(--fs-small);color:var(--muted)}
+.main{padding:var(--sheet-inset) var(--sheet-inset) var(--sheet-inset) 0;min-width:0}
+.sheet{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sheet);padding:var(--pad);min-height:calc(100svh - 2 * var(--sheet-inset))}
+.topbar{display:none}
 
-  .recent{margin-bottom:24px}
-  .recent-label{font-size:12px;color:var(--mut);margin-bottom:10px;font-weight:600;
-    text-transform:uppercase;letter-spacing:.04em}
-  .recent-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
-  .recent-card{position:relative;flex:0 0 auto;min-width:180px;background:var(--card);border:1px solid var(--line);
-    border-radius:12px;padding:14px;text-decoration:none;color:inherit}
-  .recent-card:hover{border-color:var(--mut)}
-  .recent-del{position:absolute;top:6px;right:6px;width:20px;height:20px;border-radius:50%;
-    border:1px solid var(--line);background:var(--card);color:var(--mut);font-size:13px;line-height:1;
-    display:none;align-items:center;justify-content:center;cursor:pointer}
-  .recent-card:hover .recent-del{display:flex}
-  .recent-del:hover{background:var(--err);color:#fff;border-color:var(--err)}
-  .row-del{border:none;background:none;color:var(--mut);cursor:pointer;font-size:15px;padding:0 6px}
-  .row-del:hover{color:var(--err)}
-  .recent-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
-  .recent-date{font-size:12px;color:var(--mut);margin-top:4px}
-  .recent-status{font-size:12px;color:var(--mut);margin-top:8px;display:flex;align-items:center}
+/* ---------- заголовок экрана ---------- */
+.title-row{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:var(--gap)}
+.title-row h1{font-size:var(--fs-title);line-height:28px;font-weight:600;letter-spacing:-0.01em}
+.title-row .sub{margin-top:4px;color:var(--muted)}
+.title-row .sub b{color:var(--text);font-weight:500}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
 
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px}
-  .drop{border:1.5px dashed var(--line);border-radius:12px;padding:48px 20px;text-align:center;
-    cursor:pointer;transition:.15s;}
-  .drop:hover,.drop.over{border-color:var(--txt);background:var(--card2);}
-  .drop .ic{font-size:38px;opacity:.55}
-  .drop .t{font-size:16px;margin-top:12px;font-weight:600}
-  .drop .h{color:var(--mut);font-size:13px;margin-top:6px}
+/* ---------- блоки ---------- */
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--gap);align-items:start}
+.grid>*{min-width:0}
+.span-8{grid-column:span 8}.span-4{grid-column:span 4}.span-12{grid-column:1 / -1}
+.panel{border:1px solid var(--border);border-radius:var(--radius-card);padding:20px;min-width:0}
+.panel>header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;margin-bottom:12px}
+.panel h2{font-size:var(--fs-section);line-height:22px;font-weight:600}
+.meta{color:var(--muted);font-size:var(--fs-small)}
+.card-link{display:inline-flex;align-items:center;gap:2px;padding:0;border:0;background:none;color:var(--text);font-weight:500;cursor:pointer;text-underline-offset:3px}
+.card-link:hover{text-decoration:underline}
 
-  .btn{border:1px solid var(--pri);border-radius:9px;padding:12px 26px;font-size:14px;font-weight:600;
-    cursor:pointer;color:var(--pri-text);background:var(--pri);transition:.15s;
-    text-decoration:none;display:inline-block;}
-  .btn:hover{background:var(--pri-hover);border-color:var(--pri-hover)}
-  .btn:disabled{opacity:.4;cursor:not-allowed}
-  .btn.ghost{background:none;color:var(--txt);border-color:var(--line)}
-  .btn.ghost:hover{background:var(--card2);border-color:var(--mut)}
+/* загрузка: поле броска — заливка тоном, без пунктира; при перетаскивании — рамка акцента */
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:16px;padding:28px;min-height:280px;border-radius:var(--radius-card);background:var(--raised);
+  cursor:pointer;outline:2px solid transparent;transition:background-color var(--t-hover) ease,outline-color var(--t-hover) ease}
+.drop:hover{background:var(--active)}
+.drop.over{outline-color:var(--accent);background:var(--active)}
+.drop .doc{width:56px;height:56px;flex:none}
+.drop-empty{display:flex;flex-direction:column;align-items:center;gap:16px}
+/* выбранные файлы показываются прямо в поле, чтобы было видно, что именно уйдёт в обработку */
+.drop-files{width:min(560px,100%);display:grid;gap:8px}
+.file-row{display:flex;align-items:center;gap:12px;height:52px;padding:0 8px 0 12px;border-radius:var(--radius-control);background:var(--surface);border:1px solid var(--border);text-align:left}
+.file-row svg.f{width:24px;height:24px;flex:none}
+.file-row .fn{flex:1;min-width:0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-row .fs{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.drop-files .h{color:var(--muted);margin-top:4px;text-align:center}
+.drop .t{font-size:var(--fs-section);font-weight:600;line-height:22px}
+.drop .h{color:var(--muted);margin-top:4px}
+.opts{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-top:16px}
+.check{display:flex;align-items:flex-start;gap:8px;color:var(--muted);cursor:pointer;max-width:520px}
+.check input{margin:3px 0 0}
+.check b{color:var(--warning);font-weight:500}
+.picked{margin-top:12px;color:var(--muted)}
+.picked:empty{display:none}
+.picked.err{color:var(--negative)}
 
-  .row{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:18px;flex-wrap:wrap}
-  .optrow{display:flex;gap:7px;align-items:center;justify-content:center;color:var(--mut);font-size:13px;margin-top:16px}
-  .bar{height:6px;background:var(--line2);border-radius:4px;overflow:hidden;margin-top:12px}
-  .bar>div{height:100%;width:0;background:var(--pri);transition:width .3s}
-  .stat{color:var(--mut);font-size:13px;margin-top:10px;text-align:center;min-height:18px}
-  .phase-row{display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px}
+/* прогресс: дорожка и истинная доля */
+.phase{display:flex;align-items:center;gap:8px;font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.run{background:var(--accent)}.dot.ok{background:var(--positive)}.dot.warn{background:var(--warning)}.dot.err{background:var(--negative)}
+.track{height:8px;border-radius:999px;background:var(--raised);overflow:hidden;margin-top:16px}
+.track>div{height:100%;width:0;background:var(--accent);border-radius:999px;transition:width .3s var(--ease-out)}
+.stat{margin-top:12px;color:var(--muted);min-height:20px}
+.stat.err{color:var(--negative)}
 
-  /* статусы: точка + текст, без цветных плашек */
-  .dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:7px;background:var(--mut);flex:0 0 auto}
-  .dot.ok{background:var(--ok)}
-  .dot.warn{background:var(--warn)}
-  .dot.err{background:var(--err)}
-  .dot.pulse{background:var(--pri)}
+/* недавние результаты: строки, не карточки */
+.rows{display:grid;grid-template-columns:minmax(0,1fr)}
+.rrow{display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 0}
+.rrow+.rrow{border-top:1px solid var(--rule)}
+.rrow .name{min-width:0;flex:1}
+.rrow .name a{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rrow .name a:hover{text-decoration:underline}
+.rrow .name span{display:block;font-size:var(--fs-small);color:var(--muted)}
+.icon-btn{display:inline-grid;place-items:center;width:28px;height:28px;border:0;border-radius:var(--radius-control);background:none;color:var(--muted);cursor:pointer;flex:none}
+.icon-btn:hover{background:var(--raised);color:var(--text)}
+.empty-line{color:var(--muted);padding:8px 0}
 
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{padding:10px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line2)}
-  th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em;
-    position:sticky;top:0;background:var(--card)}
-  tr:last-child td{border-bottom:none}
-  tr.rowflag{background:var(--warnbg)}
-  .tblwrap{max-height:480px;overflow:auto;border:1px solid var(--line);border-radius:12px;margin-top:16px}
+/* предупреждения */
+.notice{border-radius:var(--radius-card);background:var(--pill-warning-bg);color:var(--text);padding:16px 20px;margin-bottom:var(--gap)}
+.notice b{color:var(--pill-warning-ink);font-weight:600}
+.notice ul{margin:8px 0 0;padding-left:20px}
+.notice li{margin:2px 0}
 
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;
-    align-items:center;justify-content:center;padding:20px;z-index:60}
-  .modal .box{background:var(--card);border:1px solid var(--line);border-radius:14px;
-    padding:24px;width:100%;max-width:560px;max-height:85vh;overflow:auto}
-  .modal h3{margin:0 0 14px;font-size:16px}
-  .modal input,.modal select{background:var(--input-bg);border:1px solid var(--input-border);border-radius:8px;
-    padding:9px 11px;color:var(--txt);font-size:14px}
-  .frow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
-  .frow input{flex:1;min-width:120px}
-  .err{color:var(--err);font-size:13px;min-height:18px;margin-top:8px}
-  .ok{color:var(--ok);font-size:13px;min-height:18px;margin-top:8px}
-  .linkbtn{background:none;border:none;color:var(--mut);cursor:pointer;font-size:13px;padding:4px 6px}
-  .linkbtn:hover{color:var(--txt);text-decoration:underline}
+/* вкладки состояний списка */
+.tabs{display:flex;gap:24px;border-bottom:1px solid var(--border);margin-bottom:8px;overflow-x:auto}
+.tabs button{position:relative;padding:10px 0;border:0;background:none;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button.on{color:var(--text);font-weight:500}
+.tabs button.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--accent)}
+.tabs .n{margin-left:6px;color:var(--muted);font-weight:400}
 
-  .warn{margin-top:16px;padding:14px 16px;border-radius:10px;border:1px solid var(--warn);
-    background:var(--warnbg);color:var(--txt);font-size:13px}
-  .warn ul{margin:6px 0 0;padding-left:20px}
-  .warn li{margin:3px 0}
+/* таблицы */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{height:36px;padding:0 12px;text-align:left;font-weight:400;font-size:var(--fs-small);color:var(--muted);white-space:nowrap}
+td{padding:12px;border-top:1px solid var(--rule);vertical-align:top}
+th:first-child,td:first-child{padding-left:0}th:last-child,td:last-child{padding-right:0}
+th.n,td.n{text-align:right}
+td .sub{display:block;margin-top:2px;font-size:13px;line-height:18px;color:var(--muted)}
+.item{display:flex;gap:12px;min-width:240px}
+.thumb{width:40px;height:40px;border-radius:4px;object-fit:cover;background:var(--raised);flex:none}
+.thumb.none{display:block}
+.item b{font-weight:500}
+.dash{color:var(--muted)}
+.code{font-family:var(--mono);font-size:14px;white-space:nowrap}
+.code .h{color:var(--text);font-weight:500}
+.code .r{color:var(--muted)}
+td .code-desc{max-width:36ch;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pill{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:var(--fs-small);font-weight:500;white-space:nowrap;flex:none;background:var(--pill-neutral-bg);color:var(--pill-neutral-ink)}
+.pill.pos{background:var(--pill-positive-bg);color:var(--pill-positive-ink)}
+.pill.neg{background:var(--pill-negative-bg);color:var(--pill-negative-ink)}
+.pill.warn{background:var(--pill-warning-bg);color:var(--pill-warning-ink)}
+.ext{color:var(--accent);white-space:nowrap}
+.ext:hover{text-decoration:underline}
+.flag{color:var(--warning)}
+.list-empty{padding:24px 0;color:var(--muted)}
+.kv{display:flex;gap:32px;flex-wrap:wrap;margin-bottom:var(--gap)}
+.kv div{color:var(--muted)}
+.kv b{display:block;color:var(--text);font-size:22px;line-height:28px;font-weight:400}
+tr.clickable{cursor:pointer}
+tr.clickable:hover td{background:var(--raised)}
+.section-h{font-size:var(--fs-section);font-weight:600;margin:32px 0 8px}
+
+/* кнопки и поля */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border-radius:var(--radius-control);
+  border:1px solid var(--control);background:var(--surface);font-weight:500;cursor:pointer;white-space:nowrap;
+  transition:background-color var(--t-hover) ease,transform 120ms var(--ease-out)}
+.btn:hover{background:var(--raised)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--primary);color:var(--primary-ink);border-color:transparent}
+.btn.primary:hover{opacity:.9}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.linkbtn{border:0;background:none;padding:0;color:var(--text);cursor:pointer;font-weight:500}
+.linkbtn:hover{text-decoration:underline}
+.linkbtn.danger{color:var(--negative)}
+.field{display:grid;gap:8px;margin-bottom:16px}
+.field label{font-weight:500}
+.input,select.input{height:40px;padding:0 12px;border:1px solid var(--control);border-radius:var(--radius-control);background:var(--surface);min-width:0}
+.msg{min-height:20px;margin-top:4px}
+.msg.err{color:var(--negative)}.msg.ok{color:var(--positive)}
+
+/* настройки: колонка подписи + панель */
+.settings{max-width:1152px}
+.srow{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:var(--gap);padding:32px 0}
+.srow+.srow{border-top:1px solid var(--border)}
+.srow:first-of-type{padding-top:0}
+.srow h2{font-size:var(--fs-section);font-weight:600;line-height:22px}
+.srow p{color:var(--muted);margin-top:4px;max-width:46ch}
+.spanel{background:var(--raised);border-radius:var(--radius-sheet);padding:16px}
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.switch{appearance:none;width:32px;height:20px;border-radius:999px;background:var(--control);position:relative;cursor:pointer;flex:none;margin:0;transition:background-color var(--t-ui) ease}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform var(--t-ui) var(--ease-out)}
+.switch:checked{background:var(--accent)}.switch:checked::after{transform:translateX(12px)}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.form-grid .field{margin:0}
+
+/* диалог: единственное, что действительно парит, — с тенью */
+.modal{position:fixed;inset:0;background:rgba(19,20,22,.4);display:flex;align-items:center;justify-content:center;padding:16px;z-index:60}
+.modal .box{background:var(--surface);border-radius:var(--radius-sheet);padding:24px;width:100%;max-width:460px;box-shadow:0 12px 40px rgba(0,0,0,.18)} /* taste-skill-ignore: диалог парит над страницей */
+.modal h3{font-size:var(--fs-section);margin-bottom:8px}
+.modal .actions{justify-content:flex-end;margin-top:20px}
+
+/* ---------- телефон: меню сворачивается, лист становится экраном ---------- */
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .sidebar{position:fixed;inset:0;width:100%;height:100%;z-index:30;background:var(--ground);transform:translateX(-100%);transition:transform var(--t-ui) var(--ease-out)}
+  .sidebar.open{transform:none}
+  .topbar{display:flex;align-items:center;gap:8px;height:48px;padding:0 8px;position:sticky;top:0;z-index:20;background:var(--ground)}
+  .topbar .t{font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .main{padding:0}
+  .sheet{border:0;border-radius:0;padding:16px;min-height:calc(100svh - 48px)}
+  .grid>*{grid-column:1 / -1}
+  .title-row{flex-wrap:wrap;align-items:flex-start}
+  .drop{padding:20px;min-height:220px}
+  .srow{grid-template-columns:minmax(0,1fr);gap:12px}
+  .form-grid{grid-template-columns:minmax(0,1fr)}
+  /* таблица результата: строки становятся двухстрочными элементами */
+  #tbl thead{display:none}
+  #tbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 0;border-top:1px solid var(--rule)}
+  #tbl td{border:0;padding:0}
+  #tbl td.c-item{grid-column:1 / -1}
+  #tbl td.c-qty,#tbl td.c-sum,#tbl td.c-link,#tbl td.c-src{display:none}
+  #tbl td.c-code{grid-column:1}
+  #tbl td.c-status{grid-column:2;text-align:right}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms !important;animation:none !important}}
 </style>
 </head>
 <body>
-<nav class="navbar">
-  <div class="brand">Clearance <b>AI</b></div>
-  <div class="navtabs" id="tabs">
-    <button class="navtab active" id="tabProcess">Обработка</button>
-    <button class="navtab hide" id="tabSourcing">Закупка (Китай)</button>
-  </div>
-  <div class="navright">
-    <button class="icon-btn" id="themeToggle" title="Тема">◐</button>
-    <div class="usermenu">
-      <button class="usermenu-btn" id="userMenuBtn"><span id="who"></span> <span class="chev">⌄</span></button>
-      <div class="usermenu-panel hide" id="userMenuPanel">
-        <button class="menuitem hide" id="btnStats">📊 Статистика</button>
-        <button class="menuitem hide" id="btnAdmin">👥 Пользователи</button>
-        <button class="menuitem" id="btnMy">🕘 Вся активность</button>
-        <button class="menuitem" id="btnPwd">🔑 Сменить пароль</button>
-        <button class="menuitem danger" id="btnLogout">Выйти</button>
+<div class="app">
+  <aside class="sidebar" id="sidebar" aria-label="Разделы">
+    <div class="brand">
+      <svg viewBox="0 0 22 22" aria-hidden="true"><path d="M5 2.75h8.5L18 7.25v12H5z" fill="none" style="stroke:var(--accent)" stroke-width="1.5" stroke-linejoin="round"/><path d="M13.5 2.75v4.5H18" fill="none" style="stroke:var(--accent)" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 13.25l2.25 2.25L15 10.75" fill="none" style="stroke:var(--accent)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Clearance AI</span>
+    </div>
+    <button class="nav-item current" id="tabProcess" type="button">
+      <svg class="i" viewBox="0 0 16 16"><path d="M3.5 1.75h6l3 3v9.5h-9z"/><path d="M5.75 8.5h4.5M5.75 11h3"/></svg>Обработка
+    </button>
+    <button class="nav-item hide" id="tabSourcing" type="button">
+      <svg class="i" viewBox="0 0 16 16"><path d="M2 3.5h1.75l1.5 7h7l1.5-5H4.5"/><circle cx="6" cy="13.25" r="1"/><circle cx="11.5" cy="13.25" r="1"/></svg>Закупка (Китай)
+    </button>
+    <button class="nav-item" id="btnMy" type="button">
+      <svg class="i" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.75V8l2.25 1.5"/></svg>История
+    </button>
+    <div class="group-label hide" id="adminGroup">Администрирование</div>
+    <button class="nav-item hide" id="btnAdmin" type="button">
+      <svg class="i" viewBox="0 0 16 16"><circle cx="6" cy="5.5" r="2.5"/><path d="M1.75 13.5c.5-2.5 2.25-3.75 4.25-3.75s3.75 1.25 4.25 3.75"/><path d="M10.75 3.25a2.25 2.25 0 0 1 0 4.5M12 9.9c1.2.5 1.95 1.6 2.25 3.6"/></svg>Пользователи
+    </button>
+    <button class="nav-item hide" id="btnStats" type="button">
+      <svg class="i" viewBox="0 0 16 16"><path d="M2.5 13.5h11"/><path d="M4.5 11V8M8 11V4.5M11.5 11V6.5"/></svg>Статистика
+    </button>
+    <div class="bottom">
+      <button class="nav-item" id="btnPwd" type="button">
+        <svg class="i" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.25"/><path d="M8 1.75v1.5M8 12.75v1.5M1.75 8h1.5M12.75 8h1.5M3.6 3.6l1.05 1.05M11.35 11.35l1.05 1.05M3.6 12.4l1.05-1.05M11.35 4.65l1.05-1.05"/></svg>Настройки
+      </button>
+      <button class="nav-item" id="btnLogout" type="button">
+        <svg class="i" viewBox="0 0 16 16"><path d="M6.5 2.25h-3v11.5h3M10.5 5l3 3-3 3M13.5 8h-7"/></svg>Выйти
+      </button>
+      <div class="account-row"><span class="avatar" id="avatar" aria-hidden="true"></span><span class="who" id="who"></span></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="icon-btn" id="menuToggle" type="button" aria-label="Меню"><svg class="i" viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg></button>
+      <span class="t" id="topTitle">Clearance AI</span>
+    </div>
+    <main class="sheet">
+      <!-- один h1 на экран: заголовок и подзаголовок меняются при переключении раздела -->
+      <div class="title-row">
+        <div>
+          <h1 id="pageTitle">Обработка инвойсов</h1>
+          <p class="sub" id="pageSub">Загрузите инвойс и пакинг-лист: ИИ переведёт товары и подберёт коды ТН ВЭД.</p>
+        </div>
+        <div class="actions" id="workActions">
+          <button class="btn hide" id="again" type="button">Новый файл</button>
+          <button class="btn primary hide" id="dl" type="button">Скачать .xlsx</button>
+        </div>
       </div>
-    </div>
-  </div>
-</nav>
 
-<div class="page">
-  <h1 class="title">Обработка инвойсов</h1>
-  <div class="sub">Перевод · поиск товаров · экспорт в закупочный шаблон</div>
+      <!-- ===== Обработка / Закупка ===== -->
+      <section id="viewWork">
 
-  <div class="recent hide" id="recentStrip"></div>
+        <div class="grid" id="workGrid">
+          <div class="span-8" id="workMain">
+            <div class="panel" id="uploadCard">
+              <header><h2>Новый инвойс</h2><span class="meta">Excel или PDF, до 5 файлов по 40 МБ</span></header>
+              <div class="drop" id="drop" role="button" tabindex="0">
+                <div class="drop-empty" id="dropEmpty">
+                <svg class="doc" viewBox="0 0 56 56" aria-hidden="true"><path d="M14 6h20l10 10v34H14z" fill="var(--surface)" stroke="var(--control)" stroke-width="1.5" stroke-linejoin="round"/><path d="M34 6v10h10" fill="none" stroke="var(--control)" stroke-width="1.5" stroke-linejoin="round"/><path d="M29 24v14M23 32l6 6 6-6" fill="none" style="stroke:var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <div>
+                  <div class="t">Перетащите файлы сюда или выберите на компьютере</div>
+                  <div class="h">Инвойс и пакинг-лист можно загрузить вместе: .xlsx, .xlsm, .xltx, .xltm, .xls или .pdf</div>
+                </div>
+                </div>
+                <div class="drop-files hide" id="dropFiles"></div>
+              </div>
+              <input type="file" id="file" accept=".xlsx,.xlsm,.xltx,.xltm,.xls,.pdf" class="hide" multiple>
+              <div class="picked" id="fname"></div>
+              <div class="opts">
+                <label class="check" id="webSearchRow"><input type="checkbox" id="webSearch"><span>Искать фото, ссылки и материал в интернете. <b>Тратит баланс</b>, по умолчанию выключено.</span></label>
+                <div class="actions">
+                  <a class="btn hide" id="tzTemplateBtn" href="/api/tz-template">Шаблон ТЗ</a>
+                  <button class="btn primary" id="go" type="button" disabled>Обработать</button>
+                </div>
+              </div>
+            </div>
 
-  <div class="card" id="uploadCard">
-    <div class="drop" id="drop">
-      <div class="ic">＋</div>
-      <div class="t">Перетащите файлы сюда</div>
-      <div class="h">инвойс + пакинг-лист можно вместе · Excel (.xlsx .xlsm .xltx .xltm .xls) или .pdf · до 5 файлов по 40 МБ</div>
-    </div>
-    <input type="file" id="file" accept=".xlsx,.xlsm,.xltx,.xltm,.xls,.pdf" class="hide" multiple>
-    <label class="optrow" id="webSearchRow">
-      <input type="checkbox" id="webSearch"> Искать фото/ссылки/материал в интернете — <b style="color:var(--warn)">тратит баланс</b>. Выкл (по умолчанию) — бесплатно
-    </label>
-    <div class="row">
-      <button class="btn" id="go" disabled>Обработать</button>
-      <a class="btn ghost hide" id="tzTemplateBtn" href="/api/tz-template">Шаблон ТЗ</a>
-    </div>
-    <div class="stat" id="fname"></div>
-  </div>
+            <div class="panel hide" id="procCard">
+              <div class="phase"><span class="dot run" id="phaseDot"></span><span id="phase">Обработка</span></div>
+              <div class="track"><div id="fill"></div></div>
+              <div class="stat" id="stat"></div>
+              <div class="actions" style="margin-top:16px"><button class="btn" id="cancelJob" type="button">Отменить</button></div>
+            </div>
+          </div>
 
-  <div class="card hide" id="procCard" style="margin-top:18px">
-    <div class="phase-row"><span class="dot pulse" id="phaseDot"></span><span id="phase">Обработка…</span></div>
-    <div class="bar"><div id="fill"></div></div>
-    <div class="stat" id="stat"></div>
-    <div class="row"><button class="btn ghost" id="cancelJob">Отменить</button></div>
-  </div>
+          <div class="span-4" id="recentPanel">
+            <div class="panel">
+              <header><h2>Недавние результаты</h2><button class="card-link" id="allHistory" type="button">Вся история</button></header>
+              <div class="rows" id="recentStrip"><div class="empty-line">Здесь появятся обработанные файлы.</div></div>
+            </div>
+          </div>
+        </div>
 
-  <div class="card hide" id="resCard" style="margin-top:18px">
-    <div class="row" style="justify-content:space-between">
-      <div id="doneTitle" style="display:flex;align-items:center;font-weight:700">
-        <span class="dot ok" id="doneDot"></span><span id="doneText">Готово</span>
-        <span class="muted" id="rate" style="margin-left:8px;font-weight:400"></span>
-      </div>
-      <div style="display:flex;gap:10px">
-        <button class="btn" id="dl">Скачать .xlsx</button>
-        <button class="btn ghost" id="again">Новый файл</button>
-      </div>
-    </div>
-    <div class="warn hide" id="warnBox"></div>
-    <div class="tblwrap"><table id="tbl"></table></div>
+        <div class="hide" id="resCard">
+          <div class="notice hide" id="warnBox"></div>
+          <div class="tabs" id="resTabs" role="tablist"></div>
+          <div class="table-wrap"><table id="tbl"></table></div>
+        </div>
+      </section>
+
+      <!-- ===== История ===== -->
+      <section class="hide" id="viewHistory">
+        <div id="myBody" class="muted">Загрузка…</div>
+      </section>
+
+      <!-- ===== Пользователи ===== -->
+      <section class="hide" id="viewUsers">
+        <div class="grid">
+          <div class="span-8"><div class="panel"><header><h2>Учётные записи</h2></header><div class="table-wrap" id="userList"></div></div></div>
+          <div class="span-4"><div class="panel">
+            <header><h2>Новый пользователь</h2></header>
+            <div class="field"><label for="nuLogin">Логин</label><input class="input" id="nuLogin" autocomplete="off"></div>
+            <div class="field"><label for="nuPass">Пароль</label><input class="input" id="nuPass" type="password" autocomplete="new-password"></div>
+            <div class="field"><label for="nuRole">Роль</label><select class="input" id="nuRole"><option value="user">Пользователь</option><option value="admin">Администратор</option></select></div>
+            <label class="check" style="margin-bottom:16px"><input type="checkbox" id="nuBuyer"><span>Закупщик (доступна закупка в Китае)</span></label>
+            <button class="btn primary" id="nuCreate" type="button">Создать</button>
+            <div class="msg err" id="adminMsg"></div>
+          </div></div>
+        </div>
+      </section>
+
+      <!-- ===== Статистика ===== -->
+      <section class="hide" id="viewStats">
+        <div id="statsBody" class="muted">Загрузка…</div>
+        <div id="statsDetail"></div>
+      </section>
+
+      <!-- ===== Настройки ===== -->
+      <section class="hide" id="viewAccount">
+        <div class="settings">
+          <div class="srow">
+            <div><h2>Пароль</h2><p>Смените пароль, выданный администратором. Остальные сеансы при этом завершатся.</p></div>
+            <div class="spanel">
+              <div class="field"><label for="pwOld">Текущий пароль</label><input class="input" id="pwOld" type="password" autocomplete="current-password"></div>
+              <div class="field"><label for="pwNew">Новый пароль</label><input class="input" id="pwNew" type="password" autocomplete="new-password"></div>
+              <button class="btn primary" id="pwSave" type="button">Сохранить пароль</button>
+              <div class="msg" id="pwMsg"></div>
+            </div>
+          </div>
+          <div class="srow">
+            <div><h2>Оформление</h2><p>Тёмная тема для работы вечером. Выбор запоминается в этом браузере.</p></div>
+            <div class="spanel"><label class="switch-row"><span>Тёмная тема</span><input type="checkbox" class="switch" id="themeToggle"></label></div>
+          </div>
+        </div>
+      </section>
+    </main>
   </div>
 </div>
 
-<div class="modal hide" id="demoModal">
+<div class="modal hide" id="demoModal" role="dialog" aria-modal="true" aria-labelledby="demoTitle">
   <div class="box">
-    <h3>Демо-доступ исчерпан</h3>
-    <p class="muted">Бесплатный лимит обработок для демо-аккаунта закончился. Чтобы продолжить пользоваться сервисом, необходимо приобрести подписку.</p>
-    <div class="row" style="justify-content:flex-end">
-      <button class="btn" onclick="closeModal('demoModal')">Понятно</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal hide" id="pwdModal">
-  <div class="box">
-    <h3>Смена пароля</h3>
-    <label class="muted">Текущий пароль</label>
-    <div class="frow"><input id="pwOld" type="password"></div>
-    <label class="muted">Новый пароль</label>
-    <div class="frow"><input id="pwNew" type="password"></div>
-    <div class="err" id="pwMsg"></div>
-    <div class="row" style="justify-content:flex-end">
-      <button class="btn ghost" onclick="closeModal('pwdModal')">Отмена</button>
-      <button class="btn" id="pwSave">Сохранить</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal hide" id="adminModal">
-  <div class="box">
-    <h3>Пользователи</h3>
-    <div id="userList"></div>
-    <h3 style="margin-top:20px;font-size:15px">Создать пользователя</h3>
-    <div class="frow">
-      <input id="nuLogin" placeholder="логин">
-      <input id="nuPass" type="password" placeholder="пароль">
-      <select id="nuRole"><option value="user">пользователь</option><option value="admin">админ</option></select>
-      <label style="display:flex;align-items:center;gap:6px;color:var(--mut)"><input type="checkbox" id="nuBuyer"> Закупщик</label>
-      <button class="btn" id="nuCreate">Создать</button>
-    </div>
-    <div class="err" id="adminMsg"></div>
-    <div class="row" style="justify-content:flex-end;margin-top:14px">
-      <button class="btn ghost" onclick="closeModal('adminModal')">Закрыть</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal hide" id="myModal">
-  <div class="box">
-    <h3>Мои результаты и активность</h3>
-    <div id="myBody" class="muted">Загрузка…</div>
-    <div class="row" style="justify-content:flex-end;margin-top:14px">
-      <button class="btn ghost" onclick="closeModal('myModal')">Закрыть</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal hide" id="statsModal">
-  <div class="box" style="max-width:760px">
-    <h3>Статистика по учётным записям</h3>
-    <div id="statsBody" class="muted">Загрузка…</div>
-    <div id="statsDetail"></div>
-    <div class="row" style="justify-content:flex-end;margin-top:14px">
-      <button class="btn ghost" onclick="closeModal('statsModal')">Закрыть</button>
-    </div>
+    <h3 id="demoTitle">Демо-доступ исчерпан</h3>
+    <p class="muted">Бесплатный лимит обработок для демо-аккаунта закончился. Чтобы продолжить пользоваться сервисом, нужна подписка.</p>
+    <div class="actions"><button class="btn primary" type="button" onclick="closeModal('demoModal')">Понятно</button></div>
   </div>
 </div>
 
 <script>
 const $ = s => document.querySelector(s);
-let ME = null, MODE = 'process', picked = [];
+let ME = null, MODE = 'process', picked = [], RESULT_ROWS = [], RES_FILTER = 'all';
 function closeModal(id){ $('#'+id).classList.add('hide'); }
 function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function ts(t){ return t ? new Date(t*1000).toLocaleString('ru-RU') : '—'; }
+function ts(t){ return t ? new Date(t*1000).toLocaleString('ru-RU') : '-'; }
+const DASH = '<span class="dash">-</span>';
+const ICON_X = '<svg class="i" viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+const ICON_DL = '<svg class="i" viewBox="0 0 16 16"><path d="M8 2.5v8M4.75 7.5 8 10.75l3.25-3.25M3 13.5h10"/></svg>';
 
 // --- тема (light/dark, запоминается в localStorage) ---
 try {
   const saved = localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   document.documentElement.setAttribute('data-theme', saved);
-  $('#themeToggle').onclick = function(){
-    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  $('#themeToggle').checked = saved === 'dark';
+  $('#themeToggle').onchange = function(){
+    const theme = this.checked ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', theme);
     try { localStorage.setItem('theme', theme); } catch (e) {}
   };
 } catch (e) {}
 
-// --- меню пользователя ---
-try {
-  $('#userMenuBtn').onclick = (e) => { e.stopPropagation(); $('#userMenuPanel').classList.toggle('hide'); };
-  document.addEventListener('click', () => $('#userMenuPanel').classList.add('hide'));
-} catch (e) {}
+// --- разделы (боковое меню) ---
+const VIEWS = {work:'#viewWork', history:'#viewHistory', users:'#viewUsers', stats:'#viewStats', account:'#viewAccount'};
+const NAV = {work:'#tabProcess', sourcing:'#tabSourcing', history:'#btnMy', users:'#btnAdmin', stats:'#btnStats', account:'#btnPwd'};
+const TITLES = {work:'Обработка инвойсов', sourcing:'Закупка (Китай)', history:'История', users:'Пользователи', stats:'Статистика', account:'Настройки'};
+const SUBS = {history:'Ваши обработки и действия в сервисе.',
+  users:'Учётные записи сервиса и группа «Закупщик», которой доступна закупка в Китае.',
+  stats:'Обработки по учётным записям. Нажмите на строку, чтобы открыть историю учётной записи.',
+  account:'Пароль и оформление.'};
+let WORK_SUB = 'Загрузите инвойс и пакинг-лист: ИИ переведёт товары и подберёт коды ТН ВЭД.', CUR_VIEW = 'work';
+// подзаголовок экрана обработки (вывод по результату) хранится отдельно, чтобы вернуться к нему из других разделов
+function setWorkSub(html){ WORK_SUB = html; if (CUR_VIEW === 'work') $('#pageSub').innerHTML = html; }
+function showView(v, navKey){
+  Object.keys(VIEWS).forEach(k => $(VIEWS[k]).classList.toggle('hide', k !== v));
+  const key = navKey || v;
+  CUR_VIEW = v;
+  Object.keys(NAV).forEach(k => $(NAV[k]).classList.toggle('current', k === key));
+  $('#pageTitle').textContent = TITLES[key] || '';
+  $('#pageSub').innerHTML = v === 'work' ? WORK_SUB : esc(SUBS[v] || '');
+  $('#workActions').classList.toggle('hide', v !== 'work');
+  $('#sidebar').classList.remove('open');
+}
+$('#menuToggle').onclick = () => $('#sidebar').classList.toggle('open');
 
 function setMode(m){
   MODE = m;
-  $('#tabProcess').classList.toggle('active', m==='process');
-  $('#tabSourcing').classList.toggle('active', m==='sourcing');
-  $('#resCard').classList.add('hide'); $('#procCard').classList.add('hide');
-  $('#go').textContent = m==='sourcing' ? 'Найти на 1688 и обработать' : 'Обработать';
-  $('#tzTemplateBtn').classList.toggle('hide', m!=='sourcing');
+  WORK_SUB = m === 'sourcing'
+    ? 'Загрузите инвойс или ТЗ: ИИ найдёт товары на 1688, переведёт их и подберёт коды ТН ВЭД.'
+    : 'Загрузите инвойс и пакинг-лист: ИИ переведёт товары и подберёт коды ТН ВЭД.';
+  showView('work', m === 'sourcing' ? 'sourcing' : 'work');
+  resetWork();
+  $('#go').textContent = m === 'sourcing' ? 'Найти на 1688 и обработать' : 'Обработать';
+  $('#tzTemplateBtn').classList.toggle('hide', m !== 'sourcing');
   // в «Закупке» поиск в интернете (и фото) включён всегда — чекбокс не нужен
-  $('#webSearchRow').classList.toggle('hide', m==='sourcing');
+  $('#webSearchRow').classList.toggle('hide', m === 'sourcing');
 }
 $('#tabProcess').onclick = () => setMode('process');
 $('#tabSourcing').onclick = () => setMode('sourcing');
@@ -308,33 +473,28 @@ async function loadMe(){
   const r = await fetch('/api/me');
   if (!r.ok){ location.href='/login'; return; }
   ME = await r.json();
-  const buyerTag = ME.is_buyer && ME.role!=='admin' ? ' <span class="tag">закупщик</span>' : '';
-  $('#who').innerHTML = `${esc(ME.username)}` +
-    (ME.role==='admin' ? ' <span class="tag">админ</span>' : buyerTag);
-  if (ME.role==='admin'){ $('#btnAdmin').classList.remove('hide'); $('#btnStats').classList.remove('hide'); }
+  const role = ME.role==='admin' ? 'Администратор' : (ME.is_buyer ? 'Закупщик' : 'Пользователь');
+  $('#who').innerHTML = `<b>${esc(ME.username)}</b><span class="role">${role}</span>`;
+  $('#avatar').textContent = (ME.username || '?').slice(0, 1).toUpperCase();
+  if (ME.role==='admin'){ $('#btnAdmin').classList.remove('hide'); $('#btnStats').classList.remove('hide'); $('#adminGroup').classList.remove('hide'); }
   if (ME.is_buyer) $('#tabSourcing').classList.remove('hide');
   loadRecent();
 }
 loadMe();
 
-const EVT = {login:'вход', process:'обработка', result:'результат', download:'скачивание', error:'ошибка'};
+const EVT = {login:'Вход', process:'Обработка', result:'Результат', download:'Скачивание', error:'Ошибка'};
 
-// --- лента последних результатов ---
+// --- недавние результаты (правая колонка) ---
 async function loadRecent(){
   try{
     const s = await (await fetch('/api/my/history')).json();
-    const list = (s.results_list||[]).slice(0,6);
+    const list = (s.results_list||[]).slice(0,5);
     const box = $('#recentStrip');
-    if (!list.length){ box.classList.add('hide'); box.innerHTML=''; return; }
-    box.innerHTML = '<div class="recent-label">Недавние результаты</div><div class="recent-row">'
-      + list.map(r => `<a class="recent-card" href="/api/my/result/${encodeURIComponent(r.id)}">
-          <button type="button" class="recent-del" data-rid="${esc(r.id)}" title="Удалить из истории">✕</button>
-          <div class="recent-name">${esc(r.name)}</div>
-          <div class="recent-date">${ts(r.ts)}</div>
-          <div class="recent-status"><span class="dot ok"></span>готово</div>
-        </a>`).join('')
-      + '</div>';
-    box.classList.remove('hide');
+    if (!list.length){ box.innerHTML = '<div class="empty-line">Здесь появятся обработанные файлы.</div>'; return; }
+    box.innerHTML = list.map(r => `<div class="rrow">
+        <div class="name"><a href="/api/my/result/${encodeURIComponent(r.id)}" title="Скачать ${esc(r.name)}">${esc(r.name)}</a><span>${ts(r.ts)}</span></div>
+        <button type="button" class="icon-btn recent-del" data-rid="${esc(r.id)}" aria-label="Удалить из истории" title="Удалить из истории">${ICON_X}</button>
+      </div>`).join('');
   } catch(e){}
 }
 $('#recentStrip').onclick = async (e) => {
@@ -344,14 +504,15 @@ $('#recentStrip').onclick = async (e) => {
   await fetch('/api/my/result/' + encodeURIComponent(btn.dataset.rid), { method:'DELETE' }).catch(()=>{});
   loadRecent();
 };
+$('#allHistory').onclick = () => { showView('history'); loadMy(); };
 
-// --- Мои результаты / активность (для всех) ---
+// --- история (для всех) ---
 async function loadMy(){
   $('#myBody').innerHTML='Загрузка…';
   const s = await (await fetch('/api/my/history')).json();
   renderMy(s, '#myBody', '/api/my/result/', true);
 }
-$('#btnMy').onclick = () => { $('#myModal').classList.remove('hide'); loadMy(); };
+$('#btnMy').onclick = () => { showView('history'); loadMy(); };
 $('#myBody').onclick = async (e) => {
   const btn = e.target.closest('.row-del');
   if (!btn) return;
@@ -359,105 +520,113 @@ $('#myBody').onclick = async (e) => {
   loadMy(); loadRecent();
 };
 function renderMy(s, sel, dlbase, canDelete){
-  let h = `<div style="margin-bottom:10px">Запусков: <b>${s.runs||0}</b> · Результатов: <b>${s.results||0}</b> · Последний вход: ${ts(s.last_login)}</div>`;
-  h += '<b>Последние результаты:</b>';
+  let h = `<div class="kv"><div>Запусков<b class="num">${esc(s.runs||0)}</b></div><div>Результатов<b class="num">${esc(s.results||0)}</b></div><div>Последний вход<b>${ts(s.last_login)}</b></div></div>`;
+  h += '<h2 class="section-h">Результаты</h2>';
   if ((s.results_list||[]).length){
-    h += '<div class="tblwrap" style="max-height:200px"><table><tr><th>Файл</th><th>Когда</th><th>Скачать</th>' + (canDelete?'<th></th>':'') + '</tr>';
-    s.results_list.forEach(r => { h += `<tr><td>${esc(r.name)}</td><td>${ts(r.ts)}</td><td><a href="${esc(dlbase + encodeURIComponent(r.id))}">⬇ xlsx</a></td>`
-      + (canDelete ? `<td><button type="button" class="row-del" data-rid="${esc(r.id)}" title="Удалить из истории">✕</button></td>` : '') + '</tr>'; });
-    h += '</table></div>';
-  } else h += ' <span class="muted">пока нет</span>';
-  h += '<div style="margin-top:12px"><b>История действий:</b></div>';
-  h += '<div class="tblwrap" style="max-height:200px"><table><tr><th>Когда</th><th>Действие</th><th>Детали</th></tr>';
-  (s.events||[]).forEach(e => { h += `<tr><td>${ts(e.ts)}</td><td>${EVT[e.type]||e.type}</td><td>${esc(e.detail||'')}</td></tr>`; });
-  h += '</table></div>';
+    h += '<div class="table-wrap"><table><thead><tr><th>Файл</th><th class="n">Когда</th><th class="n">Скачать</th>' + (canDelete?'<th></th>':'') + '</tr></thead><tbody>';
+    s.results_list.forEach(r => { h += `<tr><td>${esc(r.name)}</td><td class="n">${ts(r.ts)}</td><td class="n"><a class="ext" href="${esc(dlbase + encodeURIComponent(r.id))}">Скачать .xlsx</a></td>`
+      + (canDelete ? `<td class="n"><button type="button" class="icon-btn row-del" data-rid="${esc(r.id)}" aria-label="Удалить из истории" title="Удалить из истории">${ICON_X}</button></td>` : '') + '</tr>'; });
+    h += '</tbody></table></div>';
+  } else h += '<div class="list-empty">Пока нет результатов.</div>';
+  h += '<h2 class="section-h">Действия</h2>';
+  if ((s.events||[]).length){
+    h += '<div class="table-wrap"><table><thead><tr><th>Когда</th><th>Действие</th><th>Детали</th></tr></thead><tbody>';
+    (s.events||[]).forEach(e => { h += `<tr><td class="num" style="white-space:nowrap">${ts(e.ts)}</td><td>${esc(EVT[e.type]||e.type)}</td><td>${esc(e.detail||'')}</td></tr>`; });
+    h += '</tbody></table></div>';
+  } else h += '<div class="list-empty">Пока нет действий.</div>';
   $(sel).innerHTML = h;
 }
 
-// --- Статистика (админ) ---
+// --- статистика (админ) ---
 $('#btnStats').onclick = async () => {
-  $('#statsModal').classList.remove('hide'); $('#statsDetail').innerHTML=''; $('#statsBody').innerHTML='Загрузка…';
+  showView('stats');
+  $('#statsDetail').innerHTML=''; $('#statsBody').innerHTML='Загрузка…';
   const d = await (await fetch('/api/admin/activity')).json();
-  let h = `<div style="margin-bottom:10px;font-size:15px">Всего обработок за всё время: <b>${d.total_runs||0}</b> · с результатом: <b>${d.total_results||0}</b></div>`;
-  h += '<div class="tblwrap" style="max-height:300px"><table><tr><th>Учётка</th><th>Роль</th><th>Запусков</th><th>Результатов</th><th>Последний запуск</th></tr>';
+  let h = `<div class="kv"><div>Обработок за всё время<b class="num">${esc(d.total_runs||0)}</b></div><div>С результатом<b class="num">${esc(d.total_results||0)}</b></div></div>`;
+  h += '<div class="table-wrap"><table><thead><tr><th>Учётная запись</th><th>Роль</th><th class="n">Запусков</th><th class="n">Результатов</th><th class="n">Последний запуск</th></tr></thead><tbody>';
   (d.users||[]).forEach(u => {
-    const grp = (u.groups||[]).includes('Закупщик') ? ' <span class="badge">закупщик</span>' : '';
-    h += `<tr style="cursor:pointer" data-act="stat" data-user="${esc(u.username)}"><td><b>${esc(u.username)}</b>${grp}</td><td>${esc(u.role)}</td><td>${esc(u.runs)}</td><td>${esc(u.results)}</td><td>${ts(u.last_run)}</td></tr>`;
+    const grp = (u.groups||[]).includes('Закупщик') ? ' <span class="pill">Закупщик</span>' : '';
+    h += `<tr class="clickable" data-act="stat" data-user="${esc(u.username)}"><td><b>${esc(u.username)}</b>${grp}</td><td>${u.role==='admin' ? 'Администратор' : 'Пользователь'}</td><td class="n">${esc(u.runs)}</td><td class="n">${esc(u.results)}</td><td class="n">${ts(u.last_run)}</td></tr>`;
   });
-  h += '</table></div><div class="muted" style="margin-top:6px">Нажми на учётку — история и её последние результаты.</div>';
+  h += '</tbody></table></div>';
   $('#statsBody').innerHTML = h;
 };
 async function statUser(uname){
   $('#statsDetail').innerHTML = 'Загрузка…';
   const s = await (await fetch('/api/admin/activity/'+encodeURIComponent(uname))).json();
   let wrap = document.createElement('div');
-  wrap.innerHTML = `<h3 style="margin-top:18px;font-size:16px">Учётка: ${esc(uname)}</h3><div id="statsUserBody"></div>`;
+  wrap.innerHTML = `<h2 class="section-h" style="margin-top:40px">${esc(uname)}</h2><div id="statsUserBody"></div>`;
   $('#statsDetail').innerHTML=''; $('#statsDetail').appendChild(wrap);
   renderMy(s, '#statsUserBody', '/api/admin/result/'+encodeURIComponent(uname)+'/');
 }
 
 $('#btnLogout').onclick = async () => { await fetch('/api/logout',{method:'POST'}); location.href='/login'; };
 
-$('#btnPwd').onclick = () => { $('#pwMsg').textContent=''; $('#pwOld').value=''; $('#pwNew').value=''; $('#pwdModal').classList.remove('hide'); };
+// --- настройки ---
+$('#btnPwd').onclick = () => { $('#pwMsg').textContent=''; $('#pwOld').value=''; $('#pwNew').value=''; showView('account'); };
 $('#pwSave').onclick = async () => {
   $('#pwMsg').textContent='';
   const r = await fetch('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({old:$('#pwOld').value,new:$('#pwNew').value})});
   const d = await r.json().catch(()=>({}));
-  if (r.ok){ $('#pwMsg').className='ok'; $('#pwMsg').textContent='Пароль изменён'; setTimeout(()=>closeModal('pwdModal'),900); }
-  else { $('#pwMsg').className='err'; $('#pwMsg').textContent=d.detail||'Ошибка'; }
+  if (r.ok){ $('#pwMsg').className='msg ok'; $('#pwMsg').textContent='Пароль изменён'; $('#pwOld').value=''; $('#pwNew').value=''; }
+  else { $('#pwMsg').className='msg err'; $('#pwMsg').textContent=d.detail||'Ошибка'; }
 };
 
-$('#btnAdmin').onclick = () => { $('#adminMsg').textContent=''; loadUsers(); $('#adminModal').classList.remove('hide'); };
+// --- пользователи (админ) ---
+$('#btnAdmin').onclick = () => { $('#adminMsg').textContent=''; showView('users'); loadUsers(); };
 async function loadUsers(){
   const r = await fetch('/api/admin/users'); if(!r.ok) return;
   const users = (await r.json()).users;
-  $('#userList').innerHTML = users.map(u => {
+  $('#userList').innerHTML = '<table><thead><tr><th>Логин</th><th>Роль</th><th class="n">Действия</th></tr></thead><tbody>' + users.map(u => {
     const isBuyer = u.groups && u.groups.indexOf('Закупщик')>=0;
-    const tags = (u.role==='admin'?' <span class="tag">админ</span>':'')
-      + (isBuyer?' <span class="badge">закупщик</span>':'');
+    const role = (u.role==='admin' ? 'Администратор' : 'Пользователь') + (isBuyer ? ' <span class="pill">Закупщик</span>' : '');
     const buyerBtn = u.role==='admin' ? ''
-      : `<button class="linkbtn" data-act="buyer" data-user="${esc(u.username)}" data-val="${!isBuyer}">${isBuyer?'убрать закупщика':'сделать закупщиком'}</button>`;
-    return `<div class="frow" style="justify-content:space-between;border-bottom:1px solid var(--line2);padding:8px 0">
-      <span><b>${esc(u.username)}</b>${tags}</span>
-      <span>
+      : `<button class="linkbtn" type="button" data-act="buyer" data-user="${esc(u.username)}" data-val="${!isBuyer}">${isBuyer?'Убрать из закупщиков':'Сделать закупщиком'}</button>`;
+    return `<tr><td><b>${esc(u.username)}</b></td><td>${role}</td>
+      <td class="n"><span class="actions" style="justify-content:flex-end;gap:16px">
         ${buyerBtn}
-        <button class="linkbtn" data-act="reset" data-user="${esc(u.username)}">сбросить пароль</button>
-        ${u.role!=='admin'?`<button class="linkbtn" style="color:var(--err)" data-act="del" data-user="${esc(u.username)}">удалить</button>`:''}
-      </span>
-    </div>`;
-  }).join('');
+        <button class="linkbtn" type="button" data-act="reset" data-user="${esc(u.username)}">Сбросить пароль</button>
+        ${u.role!=='admin'?`<button class="linkbtn danger" type="button" data-act="del" data-user="${esc(u.username)}">Удалить</button>`:''}
+      </span></td></tr>`;
+  }).join('') + '</tbody></table>';
 }
 $('#nuCreate').onclick = async () => {
-  $('#adminMsg').className='err'; $('#adminMsg').textContent='';
+  $('#adminMsg').className='msg err'; $('#adminMsg').textContent='';
   const r = await fetch('/api/admin/users',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({username:$('#nuLogin').value,password:$('#nuPass').value,role:$('#nuRole').value,buyer:$('#nuBuyer').checked})});
   const d = await r.json().catch(()=>({}));
-  if (r.ok){ $('#nuLogin').value=''; $('#nuPass').value=''; $('#nuBuyer').checked=false; $('#adminMsg').className='ok'; $('#adminMsg').textContent='Создан'; loadUsers(); }
+  if (r.ok){ $('#nuLogin').value=''; $('#nuPass').value=''; $('#nuBuyer').checked=false; $('#adminMsg').className='msg ok'; $('#adminMsg').textContent='Пользователь создан'; loadUsers(); }
   else { $('#adminMsg').textContent = d.detail||'Ошибка'; }
 };
 async function setBuyer(username, val){
   const r = await fetch('/api/admin/set-buyer',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({username,buyer:val})});
-  if(r.ok){ loadUsers(); } else { const d=await r.json().catch(()=>({})); $('#adminMsg').className='err'; $('#adminMsg').textContent=d.detail||'Ошибка'; }
+  if(r.ok){ loadUsers(); } else { const d=await r.json().catch(()=>({})); $('#adminMsg').className='msg err'; $('#adminMsg').textContent=d.detail||'Ошибка'; }
 }
 async function resetPass(username){
   const np = prompt('Новый пароль для '+username+':'); if(!np) return;
   const r = await fetch('/api/admin/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({username,password:np})});
   const d = await r.json().catch(()=>({}));
-  $('#adminMsg').className = r.ok?'ok':'err'; $('#adminMsg').textContent = r.ok?'Пароль обновлён':(d.detail||'Ошибка');
+  $('#adminMsg').className = r.ok?'msg ok':'msg err'; $('#adminMsg').textContent = r.ok?'Пароль обновлён':(d.detail||'Ошибка');
 }
 async function delUser(username){
   if(!confirm('Удалить пользователя '+username+'?')) return;
   const r = await fetch('/api/admin/users/'+encodeURIComponent(username),{method:'DELETE'});
   const d = await r.json().catch(()=>({}));
-  if(r.ok){ loadUsers(); } else { $('#adminMsg').className='err'; $('#adminMsg').textContent=d.detail||'Ошибка'; }
+  if(r.ok){ loadUsers(); } else { $('#adminMsg').className='msg err'; $('#adminMsg').textContent=d.detail||'Ошибка'; }
 }
-let jobId = null, timer = null;
 
+// --- загрузка и обработка ---
+let jobId = null, timer = null;
 const drop = $('#drop'), fileInput = $('#file');
-drop.onclick = () => fileInput.click();
+drop.onclick = e => {
+  const x = e.target.closest('.file-x');
+  if (x){ e.stopPropagation(); picked.splice(Number(x.dataset.idx), 1); renderPicked(); return; }
+  fileInput.click();
+};
+drop.onkeydown = e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fileInput.click(); } };
 drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
 drop.ondragleave = () => drop.classList.remove('over');
 drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over');
@@ -474,27 +643,43 @@ function setFiles(list){
   if (!picked.length) err = 'Нужен файл Excel (.xlsx .xlsm .xltx .xltm .xls) или .pdf';
   else if (picked.length > MAX_FILES) err = `Не больше ${MAX_FILES} файлов за раз`;
   else if (big.length) err = 'Больше ' + MAX_MB + ' МБ: ' + big.map(f => f.name).join(', ');
-  if (err){ picked = []; $('#fname').textContent = err; $('#go').disabled = true; return; }
-  $('#fname').textContent = '📎 ' + picked.map(f => f.name).join('  +  ')
-    + (skipped ? `  (пропущено неподходящих: ${skipped})` : '');
-  $('#go').disabled = false;
+  if (err){ picked = []; $('#fname').className = 'picked err'; $('#fname').textContent = err; $('#go').disabled = true; return; }
+  $('#fname').className = 'picked';
+  $('#fname').textContent = skipped ? `Пропущено неподходящих файлов: ${skipped}` : '';
+  renderPicked();
+}
+function fmtSize(b){
+  return b < 1024 * 1024 ? Math.max(1, Math.round(b / 1024)) + ' КБ' : (b / 1024 / 1024).toFixed(1).replace('.', ',') + ' МБ';
+}
+const ICON_FILE = '<svg class="f" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2.75h8L18.25 7v14.25H6z" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linejoin="round"/><path d="M14 2.75V7h4.25" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+// список выбранных файлов внутри поля загрузки; без файлов — исходная подсказка
+function renderPicked(){
+  const has = picked.length > 0;
+  $('#dropEmpty').classList.toggle('hide', has);
+  $('#dropFiles').classList.toggle('hide', !has);
+  $('#dropFiles').innerHTML = !has ? '' : picked.map((f, i) => `<div class="file-row">${ICON_FILE}<span class="fn" title="${esc(f.name)}">${esc(f.name)}</span><span class="fs">${fmtSize(f.size)}</span>`
+      + `<button type="button" class="icon-btn file-x" data-idx="${i}" aria-label="Убрать файл" title="Убрать файл">${ICON_X}</button></div>`).join('')
+    + '<div class="h">Нажмите или перетащите, чтобы выбрать другие файлы</div>';
+  $('#go').disabled = !has;
 }
 
 $('#go').onclick = async () => {
   if (!picked.length) return;
   $('#go').disabled = true;
-  $('#stat').style.color = '';   // сброс красного после предыдущей ошибки
+  $('#stat').className = 'stat';
   const fd = new FormData();
   picked.forEach(f => fd.append('files', f));
   fd.append('sourcing', MODE==='sourcing' ? '1' : '0');
   fd.append('web', $('#webSearch').checked ? '1' : '0');
   const r = await fetch('/api/process', { method:'POST', body:fd });
   if (r.status === 402){ $('#demoModal').classList.remove('hide'); $('#go').disabled=false; return; }
-  if (!r.ok){ const d = await r.json().catch(()=>({})); $('#fname').textContent = 'Ошибка загрузки: ' + (d.detail || r.status); $('#go').disabled=false; return; }
+  if (!r.ok){ const d = await r.json().catch(()=>({})); $('#fname').className = 'picked err'; $('#fname').textContent = 'Ошибка загрузки: ' + (d.detail || r.status); $('#go').disabled=false; return; }
   jobId = (await r.json()).job_id;
   $('#cancelJob').disabled = false; $('#cancelJob').textContent = 'Отменить';
+  $('#uploadCard').classList.add('hide');
   $('#procCard').classList.remove('hide');
   $('#resCard').classList.add('hide');
+  setWorkSub('Обрабатываю: ' + esc(picked.map(f => f.name).join(', ')));
   timer = setInterval(poll, 1500); poll();
 };
 
@@ -506,31 +691,31 @@ function fmtDuration(sec){
   return s ? `${m} мин ${s} с` : `${m} мин`;
 }
 
-const PHASE_DOT = {queued:'', parsing:'pulse', enriching:'pulse', sourcing:'pulse', done:'ok', error:'err'};
+const PHASE_DOT = {queued:'', parsing:'run', enriching:'run', sourcing:'run', done:'ok', error:'err'};
 async function poll(){
   const r = await fetch('/api/status/' + jobId);
   if (!r.ok) return;
   const s = await r.json();
-  const phases = {queued:'В очереди…', parsing:'Распознаю товары…',
-    enriching:'Перевод и поиск товаров…', sourcing:'Поиск на китайских площадках…',
-    done:'Готово', error:'Ошибка'};
+  const phases = {queued:'В очереди', parsing:'Распознаю товары', enriching:'Перевожу и подбираю коды ТН ВЭД',
+    sourcing:'Ищу на китайских площадках', done:'Готово', error:'Ошибка'};
   $('#phase').textContent = phases[s.status] || s.status;
   $('#phaseDot').className = 'dot ' + (PHASE_DOT[s.status] || '');
   const pct = s.total ? Math.round(s.current/s.total*100) : (s.status==='parsing'?15:5);
   $('#fill').style.width = pct + '%';
-  let extra = s.total ? ` · ${s.current}/${s.total}` : '';
+  let extra = s.total ? ` · ${s.current} из ${s.total}` : '';
   if (s.created && (s.status==='parsing' || s.status==='enriching' || s.status==='sourcing')){
     const elapsed = Date.now()/1000 - s.created;
     if (s.total && s.current > 0){
       const left = elapsed * (s.total - s.current) / s.current;
-      extra += ` · осталось ~${fmtDuration(left)}`;
+      extra += ` · осталось около ${fmtDuration(left)}`;
     } else {
       extra += ` · идёт ${fmtDuration(elapsed)}`;
     }
   }
   $('#stat').textContent = s.message + extra;
   if (s.status === 'done'){ clearInterval(timer); $('#cancelJob').disabled = true; showResult(s); }
-  if (s.status === 'error'){ clearInterval(timer); $('#stat').style.color='var(--err)'; $('#go').disabled=false; $('#cancelJob').disabled = true; }
+  if (s.status === 'error'){ clearInterval(timer); $('#stat').className = 'stat err'; $('#go').disabled=false; $('#cancelJob').disabled = true;
+    $('#again').classList.remove('hide'); }
 }
 
 $('#cancelJob').onclick = async () => {
@@ -539,50 +724,99 @@ $('#cancelJob').onclick = async () => {
   await fetch('/api/cancel/' + jobId, { method:'POST' }).catch(()=>{});
 };
 
+// статус кода: один знак на строку
+function codeStatus(it){
+  if (!it.tnved_code) return 'none';
+  return it.tnved_needs_review ? 'review' : 'ok';
+}
 async function showResult(s){
   $('#procCard').classList.add('hide');
+  $('#workGrid').classList.add('hide');
   $('#resCard').classList.remove('hide');
-  $('#rate').textContent = s.rate ? '· ' + s.rate : '';
+  $('#dl').classList.remove('hide'); $('#again').classList.remove('hide');
   const pv = await (await fetch('/api/preview/' + jobId)).json();
-  const rows = pv.preview || [];
+  RESULT_ROWS = pv.preview || [];
+  RES_FILTER = 'all';
+  const n = RESULT_ROWS.length;
+  const review = RESULT_ROWS.filter(it => codeStatus(it) !== 'ok').length;
+  const head = review
+    ? `Готово: <b>${n} ${plural(n,'товар','товара','товаров')}</b>, проверить код ТН ВЭД: <b>${review}</b>`
+    : `Готово: <b>${n} ${plural(n,'товар','товара','товаров')}</b>, все коды ТН ВЭД с высокой уверенностью`;
+  setWorkSub(head + (s && s.rate ? ` · <span id="rate">${esc(s.rate)}</span>` : ''));
   renderWarnings(pv.warnings || []);
+  renderTable();
   loadRecent();
+}
+function fmtMoney(v){
+  const n = Number(v);
+  return isFinite(n) ? n.toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2}) : String(v);
+}
+function plural(n, one, few, many){
+  const a = n % 10, b = n % 100;
+  if (a === 1 && b !== 11) return one;
+  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few;
+  return many;
+}
+// код по уровням: товарная позиция (4 знака) ярко, остальное серым — позиция надёжнее 10-значного кода
+function fmtCode(c){
+  const d = String(c||'').replace(/\D/g, '');
+  if (!d) return DASH;
+  return `<span class="code"><span class="h">${esc(d.slice(0,4))}</span> <span class="r">${esc((d.slice(4,6)+' '+d.slice(6)).trim())}</span></span>`;
+}
+// расшифровка: название позиции (4 знака) и лист без тире-отступов из выгрузки ФНС
+function codeDesc(it){
+  const leaf = String(it.tnved_description||'').replace(/^[\s\-\u2013\u2014]+/, '').trim();
+  const text = [it.tnved_title, leaf].filter(Boolean).join(': ');
+  return text ? `<span class="sub code-desc" title="${esc(text)}">${esc(text)}</span>` : '';
+}
+function renderTable(){
+  const rows = RESULT_ROWS;
+  const cnt = {all: rows.length, review: rows.filter(it => codeStatus(it) !== 'ok').length, ok: rows.filter(it => codeStatus(it) === 'ok').length};
+  const tab = (k, label) => `<button type="button" role="tab" class="${RES_FILTER===k?'on':''}" data-filter="${k}">${label}<span class="n num">${cnt[k]}</span></button>`;
+  $('#resTabs').innerHTML = tab('all','Все') + tab('review','Проверить код') + tab('ok','Готово');
+  const shown = rows.map((it, i) => [it, i]).filter(([it]) => RES_FILTER==='all' || (RES_FILTER==='ok') === (codeStatus(it)==='ok'));
   const src = rows.some(r => r.src);
-  let html = '<tr><th>#</th><th>Фото</th><th>Наименование (RU)</th><th>Кит.</th><th>Бренд</th>'
-    + '<th>Артикул</th><th>Кол-во</th><th>Ссылка</th><th>Сумма $</th>'
-    + (src ? '<th>1688 / Китай</th><th>Поставщик</th><th>Цена ¥</th><th>MOQ</th>' : '')
-    + '</tr>';
-  rows.forEach((it,i) => {
+  // колонка, пустая во всех строках, не показывается (ссылки и фото есть только при поиске в интернете)
+  const hasLink = rows.some(r => safeUrl(r.url)), hasPhoto = rows.some(r => safeUrl(r.photo));
+  const ncols = 5 + (hasLink ? 1 : 0) + (src ? 4 : 0);
+  let html = '<thead><tr><th>Товар</th><th class="n">Кол-во</th><th class="n">Сумма, $</th><th>Код ТН ВЭД</th><th>Статус</th>' + (hasLink ? '<th>Ссылка</th>' : '')
+    + (src ? '<th>1688</th><th>Поставщик</th><th class="n">Цена, ¥</th><th class="n">MOQ</th>' : '')
+    + '</tr></thead><tbody>';
+  if (!shown.length) html += `<tr><td colspan="${ncols}" class="list-empty">${RES_FILTER==='ok' ? 'Нет строк с высокой уверенностью: проверьте коды во вкладке «Проверить код».' : 'Все коды с высокой уверенностью, проверять нечего.'}</td></tr>`;
+  shown.forEach(([it]) => {
     const url = safeUrl(it.url), photoUrl = safeUrl(it.photo);
-    const link = url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">ссылка ↗</a>` : '<span class="muted">—</span>';
-    const photo = photoUrl
-      ? `<a href="${esc(photoUrl)}" target="_blank" rel="noopener noreferrer"><img src="${esc(photoUrl)}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:6px;background:var(--card2)" loading="lazy" onerror="this.style.display='none'"></a>`
-      : '<span class="muted">—</span>';
-    const rowCls = (it.no_translation || it.no_price) ? ' class="rowflag"' : '';
-    const nameTitle = it.no_translation ? ' title="нет перевода — показан исходный текст"' : '';
-    html += `<tr${rowCls}><td>${i+1}</td><td>${photo}</td><td${nameTitle}>${esc(it.name_ru)}</td><td>${esc(it.name_zh)}</td>`
-      + `<td>${esc(it.brand)}</td><td>${esc(it.article)}</td>`
-      + `<td>${esc(it.qty)} ${esc(it.unit)}</td><td>${link}</td><td>${it.total_usd === '' || it.total_usd == null ? '<span class="muted" title="валюта или курс неизвестны — см. предупреждения">—</span>' : esc(it.total_usd)}</td>`;
+    const photo = !hasPhoto ? '' : photoUrl
+      ? `<img class="thumb" src="${esc(photoUrl)}" alt="" loading="lazy" onerror="this.style.display='none'">`
+      : '<span class="thumb none" aria-hidden="true"></span>';
+    const meta = [it.name_zh, it.brand, it.article].filter(Boolean).map(esc).join(' · ');
+    const note = it.no_translation ? '<span class="sub flag">Нет перевода: показан исходный текст</span>' : '';
+    const st = codeStatus(it);
+    const pill = st==='ok' ? '<span class="pill pos">Готово</span>' : st==='review' ? '<span class="pill warn">Проверить код</span>' : '<span class="pill neg">Нет кода</span>';
+    const miss = (it.tnved_missing||[]).length ? `<span class="sub">Не хватает: ${(it.tnved_missing||[]).map(esc).join(', ')}</span>` : '';
+    const link = url ? `<a class="ext" href="${esc(url)}" target="_blank" rel="noopener noreferrer">Открыть</a>` : DASH;
+    const sum = it.total_usd === '' || it.total_usd == null ? '<span class="dash" title="Валюта или курс неизвестны, см. предупреждения">-</span>' : esc(fmtMoney(it.total_usd));
+    html += `<tr><td class="c-item"><div class="item">${photo}<div><b>${esc(it.name_ru)}</b>${meta ? `<span class="sub">${meta}</span>` : ''}${note}</div></div></td>`
+      + `<td class="n c-qty">${esc(it.qty)} <span class="muted">${esc(it.unit)}</span></td><td class="n c-sum">${sum}</td>`
+      + `<td class="c-code">${fmtCode(it.tnved_code)}${codeDesc(it)}</td>`
+      + `<td class="c-status">${pill}${miss}</td>` + (hasLink ? `<td class="c-link">${link}</td>` : '');
     if (src) {
       const s = it.src || {};
       const cnUrl = safeUrl(s.china_url);
-      const cn = cnUrl ? `<a href="${esc(cnUrl)}" target="_blank" rel="noopener noreferrer">открыть ↗</a>` : '<span class="muted">—</span>';
-      html += `<td>${cn}</td><td>${esc(s.supplier)||'<span class="muted">—</span>'}</td>`
-        + `<td>${esc(s.price_cn)||'—'}</td><td>${esc(s.moq)||'—'}</td>`;
+      const cn = cnUrl ? `<a class="ext" href="${esc(cnUrl)}" target="_blank" rel="noopener noreferrer">Открыть</a>` : DASH;
+      html += `<td class="c-src">${cn}</td><td class="c-src">${esc(s.supplier)||DASH}</td>`
+        + `<td class="n c-src">${esc(s.price_cn)||DASH}</td><td class="n c-src">${esc(s.moq)||DASH}</td>`;
     }
     html += '</tr>';
   });
-  $('#tbl').innerHTML = html;
+  $('#tbl').innerHTML = html + '</tbody>';
 }
+$('#resTabs').onclick = e => { const b = e.target.closest('[data-filter]'); if (!b) return; RES_FILTER = b.dataset.filter; renderTable(); };
 function renderWarnings(list){
   const box = $('#warnBox');
-  $('#doneText').textContent = list.length ? 'Готово, но не всё распознано' : 'Готово';
-  $('#doneTitle').style.color = list.length ? 'var(--warn)' : 'var(--ok)';
-  $('#doneDot').className = 'dot ' + (list.length ? 'warn' : 'ok');
   if (!list.length){ box.classList.add('hide'); box.innerHTML = ''; return; }
-  box.innerHTML = `<b>Проверьте вручную (${list.length}):</b><ul>`
+  box.innerHTML = `<b>Не всё распознано, проверьте вручную (${list.length})</b><ul>`
     + list.map(w => `<li>${esc(w)}</li>`).join('')
-    + '</ul><div class="muted" style="margin-top:6px">Этот же список — на листе «Предупреждения» в скачанном файле.</div>';
+    + '</ul><div class="muted" style="margin-top:6px">Этот же список есть на листе «Предупреждения» в скачанном файле.</div>';
   box.classList.remove('hide');
 }
 // в href/src — только http(s) и свои картинки; javascript:, data: и прочее отбрасываем
@@ -592,7 +826,20 @@ function safeUrl(u){
   try { const p = new URL(u); return (p.protocol==='http:' || p.protocol==='https:') ? p.href : ''; }
   catch(e){ return ''; }
 }
-// действия в списках пользователей: имя берём из data-атрибута, а не из JS-кода
+function resetWork(){
+  clearInterval(timer);
+  $('#resCard').classList.add('hide'); $('#procCard').classList.add('hide');
+  $('#uploadCard').classList.remove('hide'); $('#workGrid').classList.remove('hide');
+  $('#dl').classList.add('hide'); $('#again').classList.add('hide');
+  $('#go').disabled = true; renderWarnings([]);
+  $('#stat').className = 'stat'; picked = []; $('#fname').className = 'picked'; $('#fname').textContent = ''; fileInput.value = '';
+  renderPicked();
+}
+$('#dl').onclick = () => location.href = '/api/result/' + jobId;
+$('#again').onclick = () => setMode(MODE);
+
+// действия в списках пользователей: имя берём из data-атрибута, а не из JS-кода.
+// Этот обработчик регистрируется последним (на это опирается tests/click_18.js).
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
   const u = el.dataset.user;
@@ -601,10 +848,6 @@ document.addEventListener('click', e => {
   else if (el.dataset.act==='reset') resetPass(u);
   else if (el.dataset.act==='del') delUser(u);
 });
-
-$('#dl').onclick = () => location.href = '/api/result/' + jobId;
-$('#again').onclick = () => { $('#resCard').classList.add('hide'); $('#go').disabled=false; renderWarnings([]);
-  $('#stat').style.color=''; picked=[]; $('#fname').textContent=''; fileInput.value=''; };
 </script>
 </body>
 </html>

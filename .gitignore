@@ -25,3 +25,6 @@ __pycache__/
 .swarm/
 agentdb.rvf
 agentdb.rvf.lock
+
+# Рабочие файлы taste-skill (снимки инспектора, тестовый стенд)
+.taste-skill/

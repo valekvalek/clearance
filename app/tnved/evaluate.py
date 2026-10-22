@@ -74,7 +74,12 @@ def evaluate(golden_rows: list[dict], use_cache: bool = True,
     expected_by_key: dict = {}
     for r in golden_rows:
         expected_by_key.setdefault(_key(r), set()).add(r["expected_code"].strip())
-    items = [{"product_name": n, "description": d, "material": m} for n, d, m in unique]
+    first_row = {}
+    for r in golden_rows:
+        first_row.setdefault(_key(r), r)
+    items = [{"product_name": n, "description": d, "material": m, "name_original": n,
+              "article": first_row[(n, d, m)].get("article") or None,
+              "brand": first_row[(n, d, m)].get("brand") or None} for n, d, m in unique]
     if novel:  # жёсткая оценка: прецеденты с ожидаемым кодом недоступны (v2)
         for it, k in zip(items, unique):
             it["_exclude_codes"] = expected_by_key[k]

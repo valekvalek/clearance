@@ -159,12 +159,12 @@ def clean_material(material) -> str:
 
 def item_key(it: dict) -> str:
     """Ключ кэша: нормализованное название + (если есть) китайское название,
-    материал и описание — один и тот же русский заголовок («Насос») с разной
+    материал, описание и артикул — один и тот же русский заголовок («Насос») с разной
     информацией о товаре не должен делить результат. Ссылка в ключ не входит.
     Для товара только с названием совпадает с normalize(название)."""
     parts = [normalize(it.get("product_name"))]
     for v in (it.get("name_zh"), clean_material(it.get("material")),
-              (it.get("description") or "")[:300]):
+              (it.get("description") or "")[:300], it.get("article")):
         n = normalize(v)
         if n:
             parts.append(n)
@@ -258,6 +258,47 @@ def _candidates_with_material(conn, name: str, material: str | None,
             merged.append(c)
             seen.add(c["code"])
     return merged
+
+
+# Модель иногда пишет в недостающие данные не слова, а названия полей своего JSON-ответа
+# (tnved/v2.py: what, material, purpose, process, completeness, parameters, retail_packaging).
+_ATTR_RU = {
+    "what": "вид товара", "material": "материал", "purpose": "назначение",
+    "process": "способ изготовления", "completeness": "комплектность",
+    "parameters": "технические параметры", "retail_packaging": "розничная упаковка",
+}
+
+
+def missing_ru(items) -> list[str]:
+    """Недостающие данные для показа человеку: названия полей -> русские слова, без повторов."""
+    out = []
+    for m in items or []:
+        t = " ".join(str(m).split())
+        t = _ATTR_RU.get(t.lower().replace(" ", "_"), t.replace("_", " "))
+        if t and t.lower() not in (x.lower() for x in out):
+            out.append(t)
+    return out
+
+
+def heading_title(code: str) -> str:
+    """Название товарной позиции (4 знака) для показа человеку, в обычном регистре
+    (в выгрузке ФНС оно капсом). Пусто, если кода нет в справочнике."""
+    code = "".join(ch for ch in (code or "") if ch.isdigit())
+    if len(code) < 4:
+        return ""
+    conn = _connect()
+    try:
+        row = conn.execute("SELECT heading_name FROM tnved_codes WHERE heading_code=? AND heading_name!='' LIMIT 1",
+                           (code[:4],)).fetchone()
+        if not row:
+            try:
+                row = conn.execute("SELECT title FROM tnved_heading_meta WHERE heading_code=?", (code[:4],)).fetchone()
+            except sqlite3.OperationalError:
+                row = None
+    finally:
+        conn.close()
+    t = " ".join((row[0] if row else "").split())
+    return (t[:1].upper() + t[1:].lower()) if t else ""
 
 
 def _code_exists(conn, code: str) -> str | None:
@@ -456,12 +497,20 @@ def classify_batch(items: list[dict], use_cache: bool = True,
                     out[i] = {"code": "", "description": "", "confidence": "low",
                               "reason": "пустое название товара", "needs_review": True}
                     continue
-                syn = _match_synonym(nkey) if use_synonyms else None
-                if use_synonyms and not syn:  # подтверждённые решения (tnved/feedback.py)
-                    from tnved import feedback as _fb
-                    ex = _fb.exact(conn, nkey)
-                    if ex:
-                        syn = {"code": ex[0], "evidence": ex[1]}
+                syn = None
+                if use_synonyms:
+                    # переводы ИИ нестабильны между запусками, поэтому ищем и по исходному
+                    # названию из инвойса и по артикулу, а не только по русскому названию
+                    names = [n for n in dict.fromkeys([nkey, normalize(it.get("name_original"))]) if n]
+                    for nm in names:
+                        syn = _match_synonym(nm)
+                        if syn:
+                            break
+                    if not syn:  # подтверждённые решения (tnved/feedback.py)
+                        from tnved import feedback as _fb
+                        ex = _fb.exact_any(conn, names, normalize(it.get("article")))
+                        if ex:
+                            syn = {"code": ex[0], "evidence": ex[1]}
                 if syn:
                     name = _code_exists(conn, syn["code"])
                     out[i] = {
@@ -511,6 +560,7 @@ def classify_batch(items: list[dict], use_cache: bool = True,
                         "_key": key, "product_name": name, "description": desc,
                         "material": material, "candidates": cands,
                         "name_zh": items[i].get("name_zh"), "product_url": items[i].get("product_url"),
+                        "brand": items[i].get("brand"), "article": items[i].get("article"),
                     })
                 llm_results, failed_keys = _classify_llm_batch(conn, batch)
                 to_cache = []

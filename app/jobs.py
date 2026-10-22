@@ -202,6 +202,13 @@ def _preview(job_id, items, src_thumbs, rates, do_sourcing):
             # для подсветки в предпросмотре (шаг 3.6) — без перевода/без цены
             "no_translation": not it["name_ru"],
             "no_price": total_usd == "" or total_usd is None,
+            # код ТН ВЭД для таблицы результата: что проверить и чего не хватило
+            "tnved_code": it.get("tnved_code") or "",
+            "tnved_description": it.get("tnved_description") or "",
+            "tnved_title": tnved_classifier.heading_title(it.get("tnved_code") or ""),
+            "tnved_confidence": it.get("tnved_confidence") or "",
+            "tnved_needs_review": bool(it.get("tnved_needs_review", True)),
+            "tnved_missing": list(it.get("tnved_missing") or []),
         }
         if do_sourcing:
             s = it.get("sourcing") or {}
@@ -306,7 +313,10 @@ def run_job(job_id, datas, names, filename, do_sourcing=False, web_search=True, 
                  "description": it.get("description"),
                  "material": it.get("material"),
                  "name_zh": it.get("name_zh"),
-                 "product_url": it.get("product_url")}
+                 "product_url": it.get("product_url"),
+                 "name_original": it.get("name_original"),
+                 "article": it.get("article"),
+                 "brand": it.get("brand")}
                 for it in items
             ])
             for it, cl in zip(items, codes):
@@ -314,6 +324,7 @@ def run_job(job_id, datas, names, filename, do_sourcing=False, web_search=True, 
                 it["tnved_description"] = cl["description"]
                 it["tnved_confidence"] = cl["confidence"]
                 it["tnved_needs_review"] = cl["needs_review"]
+                it["tnved_missing"] = tnved_classifier.missing_ru(cl.get("missing_attributes"))
         except Exception as e:
             logging.getLogger("jobs").warning("tnved classify_batch failed: %s", e)
             for it in items:

@@ -10,6 +10,8 @@
   gap       — относительный разрыв bm25 между лучшей и второй позицией поиска.
   precedent — выбранный код совпал с кодом одного из двух ближайших подтверждённых
               решений по похожим товарам (tnved_synonyms).
+  agree     — согласие нескольких независимых прогонов LLM (tnved/v2.py:_vote):
+              0 — все ответы разные, 1 — единодушны.
   missing   — число недостающих атрибутов, названных LLM (штраф).
 Веса и пороги — в tnved/config.json.
 """
@@ -34,13 +36,14 @@ def _rank_score(rank, table: dict) -> float:
 
 
 def compute(signals: dict, cfg: dict) -> dict:
-    """signals: rank (int|None), hint (bool), gap (0..1), precedent (bool), missing (int).
+    """signals: rank (int|None), hint (bool), gap (0..1), precedent (bool), agree (0..1|None), missing (int).
     Возвращает {score, level, abstain}."""
     w = cfg["weights"]
     score = (w["rank"] * _rank_score(signals.get("rank"), cfg["rank_scores"])
              + w["hint"] * (1.0 if signals.get("hint") else 0.0)
              + w["gap"] * max(0.0, min(1.0, signals.get("gap") or 0.0))
              + w.get("precedent", 0.0) * (1.0 if signals.get("precedent") else 0.0)
+             + w.get("agree", 0.0) * (signals.get("agree") or 0.0)
              - w["missing"] * min(signals.get("missing") or 0, 3) / 3.0)
     t = cfg["thresholds"]
     level = "high" if score >= t["high"] else "medium" if score >= t["medium"] else "low"

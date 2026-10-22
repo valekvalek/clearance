@@ -39,6 +39,7 @@ _load_env_file()
 # HTTPS через домен.
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "1").strip().lower() not in ("0", "false", "no")
 
+import re
 from urllib.parse import quote
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form
@@ -181,6 +182,20 @@ def icon():
     path = os.path.join(STATIC_DIR, "icon.svg")
     if os.path.exists(path):
         return FileResponse(path, media_type="image/svg+xml")
+    raise HTTPException(404)
+
+
+_FONT_NAME = re.compile(r"[A-Za-z0-9-]+\.woff2")
+
+
+@app.get("/fonts/{name}")
+def font(name: str):
+    # Шрифты лежат в static/fonts (IBM Plex, OFL), а не на CDN: CSP выше
+    # разрешает только свой домен. Без авторизации — нужны и странице входа.
+    path = os.path.join(STATIC_DIR, "fonts", name)
+    if _FONT_NAME.fullmatch(name) and os.path.isfile(path):
+        return FileResponse(path, media_type="font/woff2",
+                            headers={"Cache-Control": "public, max-age=31536000"})
     raise HTTPException(404)
 
 

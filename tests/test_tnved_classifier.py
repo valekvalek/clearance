@@ -267,3 +267,11 @@ def test_prompt_includes_chinese_name_and_link():
         "description": "Погружной насос", "product_url": "https://example.com/p/1", "candidates": []}])
     assert "水泵" in text and "https://example.com/p/1" in text and "Погружной насос" in text
     assert "Материал" not in text
+
+
+def test_missing_ru_translates_field_names_and_dedupes():
+    assert tc.missing_ru(["completeness", "parameters", "process", "retail_packaging",
+                          "параметры", "Технические параметры", "мощность", "fuel_type"]) == [
+        "комплектность", "технические параметры", "способ изготовления", "розничная упаковка",
+        "параметры", "мощность", "fuel type"]
+    assert tc.missing_ru(None) == []
