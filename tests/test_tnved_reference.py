@@ -57,3 +57,19 @@ def test_classify_batch_uses_reference_before_llm(monkeypatch):
     assert out["code"] == "9405420012" and out["confidence"] == "high" and not out["needs_review"]
     assert "эталонные" in out["reason"] and out["reference"]["support"] == 4
     R._INDEX_CACHE.clear()
+
+
+def test_reference_training_export_keeps_duplicates_drops_conflicts(tmp_path):
+    from tnved import make_training as mt
+    p = tmp_path / "ref.csv"
+    p.write_text(
+        '"Торговая марка","Наименование","Материал","Описание","Спец. пошлина %","Код ТНВЭД"\n'
+        '"нет","Паста","олово","Ссылка на описание","","3810100000"\n'
+        '"нет","Паста","олово","Ссылка на описание","","3810100000"\n'
+        '"нет","Поводок","","","","4201000000"\n'
+        '"нет","Поводок","","","","8536699008"\n'
+        '"нет","Без кода","","","",""\n', encoding="utf-8")
+    ex = mt.build_reference_examples(str(p))
+    assert len(ex) == 2, "повторы сохранены, противоречие и строка без кода исключены"
+    assert ex[0]["user"] == "Название: Паста\nМатериал: олово", "заглушки не попадают в текст"
+    assert ex[0]["response"] == '{"heading": "3810", "code": "3810100000"}'
