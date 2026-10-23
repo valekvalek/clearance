@@ -573,6 +573,22 @@ def classify_batch(items: list[dict], use_cache: bool = True,
                         "reason": f"синоним (подтверждено {syn['evidence']}x в эталоне)",
                     }
                     continue
+                if use_synonyms:
+                    # эталонная база (tests/golden_tnved/reference_examples.csv): по названию,
+                    # описанию и материалу ищем похожие товары и ставим код ДО обращения к модели
+                    from tnved import reference as _ref
+                    ref = _ref.lookup(conn, it)
+                    if ref and ref["level"] in ("high", "medium") and _code_exists(conn, ref["code"]):
+                        out[i] = {
+                            "code": ref["code"], "description": _code_exists(conn, ref["code"]) or "",
+                            "confidence": ref["level"], "needs_review": ref["level"] != "high",
+                            "reason": (f"похожие эталонные товары: {ref['support']} шт., код {ref['code']} "
+                                       f"(сходство {ref['sim']:.2f}, согласие {ref['share']:.0%})"),
+                            "reference": {k: ref[k] for k in ("sim", "share", "support", "neighbors")},
+                        }
+                        continue
+                    if ref and ref["neighbors"]:
+                        items[i]["_reference_prec"] = ref["neighbors"]  # прецеденты для промпта v2
                 cached = conn.execute(
                     "SELECT code, description, confidence, reason, needs_review, extra_json "
                     "FROM classify_cache WHERE norm_key = ?", (("v2:" + key) if use_v2 else key,),

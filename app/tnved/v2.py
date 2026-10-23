@@ -220,6 +220,11 @@ def _classify_one(item: dict, attrs: dict | None, cfg: dict) -> dict:
         prec = F.similar(conn, [item['product_name'], item.get('name_original') or ''], lim['precedents'],
                            item.get('_exclude_codes', ()), item.get('brand') or '')
         prec = _relevant_precedents(prec, lim)
+        # соседи из эталонной базы (tnved/reference.py), если база уверенного кода не дала
+        extra = _relevant_precedents(item.get("_reference_prec") or [], lim)
+        if extra:
+            best = {p["code"]: p for p in sorted(prec + extra, key=lambda p: p["sim"])}
+            prec = sorted(best.values(), key=lambda p: -p["sim"])[:lim["precedents"]]
         prec_heads = [p['code'][:4] for p in prec if H.heading_info(conn, p['code'][:4])]
         hints = [h for h in (str(x).strip() for x in _as_list(attrs.get("heading_hints")))
                  if len(h) == 4 and h.isdigit() and H.heading_info(conn, h)][:3]
