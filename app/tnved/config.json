@@ -24,10 +24,12 @@
     "heading_candidates": 12,
     "retrieval_top": 10,
     "leaf_cap": 60,
-    "notes_chars": 1200,
+    "notes_chars": 3500,
     "notes_groups": 2,
     "workers": 4,
     "precedents": 4,
+    "precedent_min_sim": 0.3,
+    "_precedent_min_sim": "прецеденты с похожестью названия ниже порога не показываются модели и не дают сигнал: на эталоне все совпадения с sim>=0.33 верны, оба неверных — 0.10 и 0.12; в работе 23.10 «Разъем Male 5х0,5 IP68» (0.12) и «Светодиодный источник света» (0.25) получили чужой код",
     "max_parallel_llm": 4
   },
   "calibration": {

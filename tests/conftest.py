@@ -41,6 +41,16 @@ os.environ.setdefault("AI_PROVIDER", "gemini")
 # тот же фейковый gemini.chat, что и остальным тестам — иначе эта
 # классификация пыталась бы стучаться в настоящий Yandex API.
 os.environ.setdefault("CLASSIFY_AI_PROVIDER", "gemini")
+# Справочник ТН ВЭД — копия во временной папке: тесты, гоняющие обработку через
+# jobs.py (в т.ч. легаси-скрипты отдельными процессами), иначе пишут фейковые
+# ответы в кэш классификации рабочей app/tnved.db.
+if "TNVED_DB_PATH" not in os.environ:
+    import shutil
+    _src = os.path.join(APP_DIR, "tnved.db")
+    if os.path.exists(_src):
+        _dst = os.path.join(tempfile.mkdtemp(prefix="tnved_pytest_"), "tnved.db")
+        shutil.copyfile(_src, _dst)
+        os.environ["TNVED_DB_PATH"] = _dst
 
 if APP_DIR not in sys.path:
     sys.path.insert(0, APP_DIR)

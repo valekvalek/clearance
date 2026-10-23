@@ -1,0 +1,85 @@
+{
+  "name": "harmonized-system",
+  "title": "Harmonized System",
+  "description": "International classification standard for trade products developed by the World Customs Organization",
+  "homepage": "http://www.wcoomd.org/en/topics/nomenclature/instrument-and-tools.aspx",
+  "version": "2022.0",
+  "keywords": ["HS Code", "commodity", "trade", "customs"],
+  "licenses": [
+    {
+      "name": "ODC-PDDL-1.0",
+      "path": "http://opendatacommons.org/licenses/pddl/",
+      "title": "Open Data Commons Public Domain Dedication and License v1.0"
+    }
+  ],
+  "sources": [
+    {
+      "name": "UN Comtrade data extraction API",
+      "path": "https://comtrade.un.org/data/doc/api/",
+      "title": "UN Comtrade"
+    }
+  ],
+  "resources": [
+    {
+      "name": "sections",
+      "title": "Sections",
+      "path": "data/sections.csv",
+      "format": "CSV",
+      "mediatype": "text/csv",
+      "schema": {
+        "fields": [
+          {
+            "name": "section",
+            "title": "Section",
+            "type": "string",
+            "format": "default"
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "format": "default"
+          }
+        ]
+      }
+    },
+    {
+      "name": "harmonized-system",
+      "title": "Harmonized System",
+      "path": "data/harmonized-system.csv",
+      "format": "CSV",
+      "mediatype": "text/csv",
+      "schema": {
+        "fields": [
+          {
+            "name": "section",
+            "type": "string",
+            "format": "default"
+          },
+          {
+            "name": "hscode",
+            "type": "string",
+            "format": "default"
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "format": "default"
+          },
+          {
+            "name": "parent",
+            "type": "string",
+            "format": "default"
+          },
+          {
+            "name": "level",
+            "type": "number",
+            "format": "default"
+          }
+        ]
+      }
+    }
+  ],
+  "has_solutions": [
+    "logistics"
+  ]
+}

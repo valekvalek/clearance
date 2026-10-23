@@ -1,0 +1,74 @@
+13:59:03 GET https://www.alta.ru/robots.txt
+14:00:05 GET https://www.tws.by/robots.txt
+14:00:41 WebSearch search: Пояснения к ТН ВЭД ЕАЭС Рекомендация
+14:00:41 WebSearch search: ФТС классификатор ТН ВЭД открытые данные
+14:00:41 WebSearch search: Такса справочник ТН ВЭД
+14:00:41 WebSearch search: github tnved dataset
+14:00:41 WebSearch search: Честный знак перечень ТН ВЭД
+14:00:43 HEAD https://docs.eaeunion.org/
+14:00:46 HEAD https://data.nalog.ru/files/tnved/tnved.zip
+14:00:49 HEAD https://www.nalog.gov.ru/html/sites/www.new.nalog.ru/doc/tnved_discr.docx
+14:00:52 HEAD https://www.alta.ru/poyasnenia/P0712/
+14:01:24 HEAD https://www.tws.by/docs/api/r2
+14:01:32 GET https://www.tws.by/mtlap/user-manual/!api!request!r002.md
+14:01:35 GET https://www.tws.by/robots.txt
+14:01:48 HEAD https://comtrade.un.org/data/cache/classificationH6.json
+14:01:50 HEAD https://raw.githubusercontent.com/datasets/harmonized-system/main/data/harmonized-system.csv
+14:01:53 HEAD https://raw.githubusercontent.com/datasets/harmonized-system/main/datapackage.json
+14:01:55 HEAD https://raw.githubusercontent.com/datasets/harmonized-system/main/README.md
+14:01:58 HEAD https://hts.usitc.gov/reststop/exportList?from=0101&to=9999&format=JSON&styles=false
+14:02:12 GET https://raw.githubusercontent.com/datasets/harmonized-system/main/datapackage.json
+14:02:15 GET https://raw.githubusercontent.com/datasets/harmonized-system/main/README.md
+14:02:17 GET https://raw.githubusercontent.com/datasets/harmonized-system/main/data/harmonized-system.csv
+14:03:34 WebSearch search: портал общих процессов НСИ классификатор ТН ВЭД
+14:03:34 WebSearch search: Пояснения Рекомендация 21 2017
+14:03:34 WebSearch search: Альта Такса стоимость
+14:03:36 HEAD https://www.tks.ru/robots.txt
+14:03:39 HEAD https://www.ifcg.ru/robots.txt
+14:03:42 HEAD https://tks.ru/db/tnved/
+14:03:45 HEAD https://www.ifcg.ru/kb/tnved/notes/
+14:03:53 GET https://www.tks.ru/robots.txt
+14:04:00 GET https://www.tks.ru/db/tnved/
+14:04:21 WebFetch pro1c.kz
+14:04:23 GET https://customs.gov.ru/uchastnikam-ved/spravochnaya-informacziya/tovarnaya-nomenklatura-%28tn-ved-eaes-i-tn-ved-sng%29
+14:05:25 HEAD https://stat.gov.kz/
+14:05:28 HEAD https://www.eurostat.ec.europa.eu/
+14:05:39 HEAD https://stat.gov.kz/
+14:05:42 HEAD https://ec.europa.eu/eurostat/ramon/nomenclatures/index.cfm?TargetUrl=LST_CLS_DLD&StrNom=CN_2026&StrLanguageCode=EN&StrLayoutCode=HIERARCHIC
+14:06:03 GET https://www.tks.ru/db/tnved/tree/
+14:06:06 GET https://www.tks.ru/db/tnved/tree/c94/
+14:06:22 GET https://www.tws.by/tws/tnved/code/14401
+14:09:48 WebSearch search: Решение 112 от 25.08.2026
+14:09:49 WebSearch search: ТН ВЭД с 1 января 2027
+14:09:49 WebSearch search: HS 2027 WCO
+14:09:51 HEAD https://www.wcoomd.org/en/topics/nomenclature/instrument-and-tools/hs-nomenclature-2028-edition.aspx
+14:09:55 HEAD https://taxation-customs.ec.europa.eu/customs/calculation-customs-duties/customs-tariff/combined-nomenclature_en
+14:09:58 HEAD https://normativ.kontur.ru/document/1/403422-reshenie-soveta-evraziyskoy-ekonomicheskoy-komissii-ot-14-09-2021-n-80
+14:10:01 HEAD https://markirovka.ru/knowledge/tovarnye-gruppy/obschie-voprosy-gis/kak-uznat-kod-tn-ved-eaes-okpd-2-tovara
+14:10:04 HEAD https://data.rcsi.science/data-catalog/datasets/201/
+14:10:14 GET https://www.wcoomd.org/en/topics/nomenclature/instrument-and-tools/hs-nomenclature-2028-edition.aspx
+14:10:20 GET https://markirovka.ru/knowledge/tovarnye-gruppy/obschie-voprosy-gis/kak-uznat-kod-tn-ved-eaes-okpd-2-tovara
+14:10:53 GET https://www.tws.by/tws/tnved/code/229
+14:10:56 GET https://www.tws.by/tws/tnved/code/572
+14:10:59 GET https://www.tws.by/tws/tnved/code/878
+14:11:01 GET https://www.tws.by/tws/tnved/code/1386
+14:11:03 GET https://www.tws.by/tws/tnved/code/1631
+14:11:06 GET https://www.tws.by/tws/tnved/code/1911
+14:11:08 GET https://www.tws.by/tws/tnved/code/2419
+14:11:11 GET https://www.tws.by/tws/tnved/code/2651
+14:11:13 GET https://www.tws.by/tws/tnved/code/2813
+14:11:16 GET https://www.tws.by/tws/tnved/code/3348
+14:11:18 GET https://www.tws.by/tws/tnved/code/3516
+14:11:20 GET https://www.tws.by/tws/tnved/code/4019
+14:11:23 GET https://www.tws.by/tws/tnved/code/4257
+14:11:26 GET https://www.tws.by/tws/tnved/code/4650
+14:11:28 GET https://www.tws.by/tws/tnved/code/5005
+14:11:30 GET https://www.tws.by/tws/tnved/code/5317
+14:11:33 GET https://www.tws.by/tws/tnved/code/5805
+14:11:36 GET https://www.tws.by/tws/tnved/code/5974
+14:11:39 GET https://www.tws.by/tws/tnved/code/6475
+14:11:41 GET https://www.tws.by/tws/tnved/code/6698
+14:11:44 GET https://www.tws.by/tws/tnved/code/6877
+14:11:46 GET https://www.tws.by/tws/tnved/code/7483
+14:11:48 GET https://www.tws.by/tws/tnved/code/7737
+14:11:51 GET https://www.tws.by/tws/tnved/code/7878

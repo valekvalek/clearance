@@ -48,6 +48,19 @@ def build(db_path: str | None = None) -> int:
                     bodies[code[:4]].append(_strip_tags(title))
         except sqlite3.OperationalError:
             pass  # tnved_tree не импортирована — документ из листьев и названия
+        try:  # тексты уровней из официального текста ЕЭК (import_tnved_eec.py)
+            seen_levels: dict[str, set] = {h: set() for h in bodies}
+            for code, path in conn.execute("SELECT code, path FROM tnved_official_paths"):
+                for part in path.split(" / "):
+                    if code[:4] in bodies and part and part not in seen_levels[code[:4]]:
+                        seen_levels[code[:4]].add(part)
+                        bodies[code[:4]].append(part)
+        except sqlite3.OperationalError:
+            pass
+        try:  # полные названия позиций из ЕЭК: у ФНС у 271 позиции названия нет
+            official_titles = dict(conn.execute("SELECT heading_code, title FROM tnved_official_headings"))
+        except sqlite3.OperationalError:
+            official_titles = {}
         for h, name in conn.execute("SELECT heading_code, name FROM tnved_codes"):
             bodies[h].append(name)
         conn.executescript("""
@@ -58,7 +71,7 @@ def build(db_path: str | None = None) -> int:
         """)
         meta, fts = [], []
         for h in sorted(titles):
-            title = titles[h] or tree_titles.get(h, "")
+            title = official_titles.get(h) or titles[h] or tree_titles.get(h, "")
             meta.append((h, groups[h], title))
             fts.append((h, title, " ".join(bodies[h])))
         conn.executemany("INSERT INTO tnved_heading_meta VALUES (?,?,?)", meta)
@@ -69,11 +82,38 @@ def build(db_path: str | None = None) -> int:
         conn.close()
 
 
+# Начало бытового слова -> основа слова, которым товар назван в тексте ТН ВЭД.
+# Без них поиск позиций не доходит до нужной: «припой» в номенклатуре не
+# встречается, там «пайка» (3810 пасты, 8311 проволока); «разъём» — «соединитель».
+_QUERY_SYNONYMS = {
+    "припо": ["пайк"], "паяльн": ["пайк"],
+    "разъем": ["соединител"], "разъём": ["соединител"], "коннектор": ["соединител"],
+}
+
+
+# То же, но по точному слову (начало «плат» совпало бы с «платье», «платок»):
+# «печатная плата» в номенклатуре — «схемы печатные» (8534).
+_QUERY_SYNONYMS_EXACT = {
+    **{w: ["схем"] for w in ("плата", "платы", "плате", "плату", "платой", "плат")},
+    "pcb": ["схем", "печатн"], "pcba": ["схем", "печатн"],
+}
+
+
+def _query_terms(query: str) -> list[str]:
+    stems = []
+    for w in tc.normalize(query).split():
+        if w and w not in tc._STOPWORDS:
+            stems.append(tc._stem(w))
+            stems += [x for k, v in _QUERY_SYNONYMS.items() if w.startswith(k) for x in v]
+            stems += _QUERY_SYNONYMS_EXACT.get(w, [])
+    return list(dict.fromkeys(stems))
+
+
 def search(conn, query: str, k: int = 15) -> list[tuple[str, float]]:
     """Топ-k позиций по bm25 по документам позиций: [(heading_code, score)],
-    score > 0, больше — лучше. Стоп-слова и грубый стемминг — как в плоском поиске."""
-    terms = [f'"{tc._stem(w)}"*' for w in tc.normalize(query).split()
-             if w and w not in tc._STOPWORDS]
+    score > 0, больше — лучше. Стоп-слова и грубый стемминг — как в плоском поиске,
+    плюс таможенные синонимы бытовых слов (_QUERY_SYNONYMS)."""
+    terms = [f'"{s}"*' for s in _query_terms(query)]
     if not terms:
         return []
     try:
@@ -92,18 +132,48 @@ def heading_info(conn, heading_code: str) -> dict | None:
     return {"heading": heading_code, "group": row[0], "title": row[1]} if row else None
 
 
-def group_notes(conn, group_code: str, limit: int = 1500) -> str:
-    try:
-        row = conn.execute("SELECT notes FROM tnved_group_notes WHERE group_code=?", (group_code,)).fetchone()
-    except sqlite3.OperationalError:
-        return ""
-    return (row[0] or "")[:limit] if row else ""
+# начало пронумерованного примечания: «… 8. В товарной позиции 8534 …»
+_NOTE_SPLIT = re.compile(r"(?<=[.;:])\s+(?=\d{1,2}\.\s+[(«\"A-ZА-ЯЁ])")
+
+
+def _full_group_notes(conn, group_code: str) -> str:
+    """Полные примечания ЕЭК (import_tnved_eec.py), иначе — обрезанные ФНС."""
+    for sql in ("SELECT notes FROM tnved_official_group_notes WHERE group_code=?",
+                "SELECT notes FROM tnved_group_notes WHERE group_code=?"):
+        try:
+            row = conn.execute(sql, (group_code,)).fetchone()
+        except sqlite3.OperationalError:
+            continue
+        if row and row[0]:
+            return row[0]
+    return ""
+
+
+def group_notes(conn, group_code: str, limit: int = 1500, headings=()) -> str:
+    """Примечания к группе для подсказки модели. headings — позиции-кандидаты
+    этой группы: берутся пункты, где они упомянуты (напр. прим. 8 «схемы
+    печатные» для 8534, прим. 11 «модули светодиодные» для 8539), плюс первый
+    пункт («в данную группу не включаются»), в порядке текста. Без headings —
+    начало текста, как раньше."""
+    text = _full_group_notes(conn, group_code)
+    if not headings or not text:
+        return text[:limit]
+    parts = _NOTE_SPLIT.split(text)
+    # parts[0] — «Примечания:» (+ примечания к разделу), parts[1] — примечание 1
+    keep = [i for i, p in enumerate(parts)
+            if i <= 1 or any(h in p.replace(" ", "") for h in headings)]
+    out = " … ".join(parts[i] for i in keep)
+    return out[:limit]
 
 
 def leaf_path(conn, code: str) -> str:
     """Тексты промежуточных подпозиций над листом (tnved_tree), без уровня
     позиции и выше (позиция показывается отдельно), без тегов [с ..]/[по ..].
-    Цепочки с самоссылкой parent_code обрываются (~24% узлов источника)."""
+    Цепочки с самоссылкой parent_code обрываются (~24% узлов источника).
+    Если импортирован официальный текст ЕЭК (tnved_official_paths) — берётся он."""
+    official = tc.official_path_title(conn, code)
+    if official is not None:
+        return official
     try:
         row = conn.execute("SELECT parent_code FROM tnved_tree WHERE code=?", (code,)).fetchone()
     except sqlite3.OperationalError:

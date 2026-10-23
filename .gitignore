@@ -28,3 +28,9 @@ agentdb.rvf.lock
 
 # Рабочие файлы taste-skill (снимки инспектора, тестовый стенд)
 .taste-skill/
+
+# research/tnved-sources: тяжёлые сырые данные не коммитим (скачиваются скриптами)
+research/tnved-sources/raw/eec_pdf/
+research/tnved-sources/raw/fns/
+research/tnved-sources/raw/*.db
+research/tnved-sources/raw/*.html

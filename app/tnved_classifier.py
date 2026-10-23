@@ -26,7 +26,9 @@ import classify_ai as ai_client
 logger = logging.getLogger("tnved_classifier")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(HERE, "tnved.db")
+# TNVED_DB_PATH — другая копия справочника (тесты, см. tests/conftest.py: иначе
+# прогоны через jobs.py пишут в кэш рабочей app/tnved.db)
+DB_PATH = os.getenv("TNVED_DB_PATH") or os.path.join(HERE, "tnved.db")
 TOP_K = 15
 # Товаров на один вызов LLM. При 15 кандидатах на товар (+ контекст позиции)
 # батч из 10 товаров (~47K символов промпта) на практике иногда вызывает
@@ -133,11 +135,24 @@ def _curated_path_title(conn, code: str) -> str:
     return " / ".join(parts)
 
 
+def official_path_title(conn, code: str) -> str | None:
+    """Путь подпозиций из официального текста ЕЭК (tnved_official_paths, см.
+    import_tnved_eec.py). None — таблицы нет или кода в ней нет; пустая
+    строка — у кода нет промежуточных уровней (это тоже ответ)."""
+    try:
+        row = conn.execute("SELECT path FROM tnved_official_paths WHERE code = ?", (code,)).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    return row[0] if row else None
+
+
 def _path_title(conn, code: str) -> str:
-    """Текст промежуточных подпозиций для кода: приоритет — полное дерево
-    alta.ru (tnved_tree, покрывает все товарные позиции), фолбэк — узкий
-    curated-справочник (tnved_subheading_titles, только то, что проверено
-    вручную без дерева, см. _curated_path_title)."""
+    """Текст промежуточных подпозиций для кода: приоритет — официальный текст
+    ЕЭК (tnved_official_paths), затем дерево alta.ru (tnved_tree, местами
+    ошибается), затем узкий curated-справочник (tnved_subheading_titles)."""
+    official = official_path_title(conn, code)
+    if official is not None:
+        return official
     return _tree_path_title(conn, code) or _curated_path_title(conn, code)
 
 
@@ -270,15 +285,52 @@ _ATTR_RU = {
 }
 
 
+# Один и тот же пробел модель называет по-разному на разных шагах v2 («материал»,
+# «материал изготовления»; «назначение», «точное назначение», «область применения»).
+# Сводим к одному понятию: и для показа, и для подсчёта (правило отказа по числу пробелов).
+_ATTR_CONCEPTS = [
+    ("материал", "материал"), ("назначен", "назначение"), ("применени", "назначение"),
+    ("комплект", "комплектность"), ("мощност", "мощность"), ("напряжен", "напряжение"),
+    ("упаковк", "розничная упаковка"), ("способ изготовлен", "способ изготовления"),
+    ("обработк", "способ изготовления"), ("параметр", "технические параметры"),
+]
+
+
 def missing_ru(items) -> list[str]:
-    """Недостающие данные для показа человеку: названия полей -> русские слова, без повторов."""
+    """Недостающие данные для показа и подсчёта: названия полей -> русские слова,
+    синонимы -> одно понятие, без повторов."""
     out = []
     for m in items or []:
         t = " ".join(str(m).split())
         t = _ATTR_RU.get(t.lower().replace(" ", "_"), t.replace("_", " "))
+        low = t.lower()
+        t = next((c for key, c in _ATTR_CONCEPTS if key in low), t)
         if t and t.lower() not in (x.lower() for x in out):
             out.append(t)
     return out
+
+
+_PLACEHOLDER = r"(?:не\s+указан[оаы]?|уточняется|нет\s+данных|неизвестно|n/?a|unknown|-|—)"
+_PH_LINE = re.compile(r"^[^:\n]{1,60}:\s*" + _PLACEHOLDER + r"\s*[.;,]?\s*$", re.I)
+_PH_PART = re.compile(r"^[^:]{1,60}(?::\s*|\s+)" + _PLACEHOLDER + r"\s*$", re.I)
+
+
+def clean_description(desc) -> str:
+    """Описание для классификатора без заглушек обогащения: строки вида «Назначение: не
+    указано», «Материал изготовления: уточняется» и части параметров «напряжение: не
+    указано» убираются — модель иначе принимает их за данные и пишет в недостающие."""
+    out = []
+    for line in str(desc or "").splitlines():
+        if not line.strip() or _PH_LINE.match(line.strip()):
+            continue
+        label, sep, value = line.partition(":")
+        if sep:
+            parts = [p for p in re.split(r"[;,]", value) if p.strip() and not _PH_PART.match(p.strip())]
+            if not parts:
+                continue
+            line = f"{label}: " + ", ".join(p.strip() for p in parts)
+        out.append(line.strip())
+    return "\n".join(out)
 
 
 def heading_title(code: str) -> str:
@@ -485,6 +537,7 @@ def classify_batch(items: list[dict], use_cache: bool = True,
     отдельно (ключ с префиксом "v2:") и содержат доп. поля (missing_attributes, rule_ref, ...)."""
     if not items:
         return []
+    items = [{**it, "description": clean_description(it.get("description"))} for it in items]
     use_v2 = (pipeline or os.getenv("TNVED_PIPELINE", "v1")) == "v2"
     with _LOCK:
         conn = _connect()

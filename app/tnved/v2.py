@@ -204,6 +204,12 @@ def _vote(system: str, user: str, field: str, valid: set, cfg: dict) -> dict | N
             "missing": _as_list(ok[idx[0]].get("missing_attributes")) if idx else []}
 
 
+def _relevant_precedents(prec: list[dict], lim: dict) -> list[dict]:
+    """Прецеденты со слабой похожестью названия (одно общее слово) уводят к чужому
+    коду и дают ложный сигнал уверенности — отбрасываем (см. config.json)."""
+    return [p for p in prec if p["sim"] >= lim.get("precedent_min_sim", 0)]
+
+
 def _classify_one(item: dict, attrs: dict | None, cfg: dict) -> dict:
     lim = cfg["limits"]
     attrs = attrs or dict(_EMPTY_ATTRS)
@@ -213,6 +219,7 @@ def _classify_one(item: dict, attrs: dict | None, cfg: dict) -> dict:
         retrieved = H.search(conn, query, lim["retrieval_top"])
         prec = F.similar(conn, [item['product_name'], item.get('name_original') or ''], lim['precedents'],
                            item.get('_exclude_codes', ()), item.get('brand') or '')
+        prec = _relevant_precedents(prec, lim)
         prec_heads = [p['code'][:4] for p in prec if H.heading_info(conn, p['code'][:4])]
         hints = [h for h in (str(x).strip() for x in _as_list(attrs.get("heading_hints")))
                  if len(h) == 4 and h.isdigit() and H.heading_info(conn, h)][:3]
@@ -236,11 +243,12 @@ def _classify_one(item: dict, attrs: dict | None, cfg: dict) -> dict:
         for inf in infos:
             if inf["group"] not in seen_groups and len(seen_groups) < lim["notes_groups"]:
                 seen_groups.append(inf["group"])
-                text = H.group_notes(conn, inf["group"], lim["notes_chars"])
+                group_heads = [i["heading"] for i in infos if i["group"] == inf["group"]]
+                text = H.group_notes(conn, inf["group"], lim["notes_chars"], group_heads)
                 if text:
-                    notes.append(f"Примечания к группе {inf['group']} (начало): {text}")
+                    notes.append(f"Примечания к группе {inf['group']} (пункты о кандидатах): {text}")
         cand_text = "\n".join(
-            f"  [{i}] {inf['heading']} — {inf['title'][:170] or '(название отсутствует в справочнике)'} "
+            f"  [{i}] {inf['heading']} — {inf['title'] or '(название отсутствует в справочнике)'} "
             f"[группа {inf['group']}]" for i, inf in enumerate(infos))
         user = (_product_block(item, attrs) + "\n\nКандидаты (товарные позиции):\n" + cand_text
                 + _precedent_text(prec) + ("\n\n" + "\n\n".join(notes) if notes else ""))
@@ -260,7 +268,7 @@ def _classify_one(item: dict, attrs: dict | None, cfg: dict) -> dict:
             f"  [{i}] {lf['code']} — " + (f"{lf['path']} / " if lf["path"] else "") + lf["name"]
             for i, lf in enumerate(leaves))
         title = next(i["title"] for i in infos if i["heading"] == heading)
-        user = (_product_block(item, attrs) + f"\n\nТоварная позиция {heading}: {title[:170]}\n\n"
+        user = (_product_block(item, attrs) + f"\n\nТоварная позиция {heading}: {title}\n\n"
                 "Листья:\n" + leaf_text + _precedent_text(prec))
         valid = {lf["code"]: lf["name"] for lf in leaves}
         lv = _vote(_LEAF_SYSTEM, user, "code", set(valid), cfg)
@@ -268,7 +276,7 @@ def _classify_one(item: dict, attrs: dict | None, cfg: dict) -> dict:
             return {**base, "failed": True, "heading": heading,
                     "reason": "временный сбой классификации, повторите запуск"}
         res2, code = lv["first"], lv["answer"]
-        missing = list(dict.fromkeys(missing + lv["missing"]))
+        missing = tc.missing_ru(missing + lv["missing"])
         rule = str(res2.get("rule_ref") or res.get("rule_ref") or "")
         reason = str(res2.get("reason") or res.get("reason") or "")[:300]
         if not code:

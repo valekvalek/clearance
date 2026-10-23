@@ -273,5 +273,39 @@ def test_missing_ru_translates_field_names_and_dedupes():
     assert tc.missing_ru(["completeness", "parameters", "process", "retail_packaging",
                           "параметры", "Технические параметры", "мощность", "fuel_type"]) == [
         "комплектность", "технические параметры", "способ изготовления", "розничная упаковка",
-        "параметры", "мощность", "fuel type"]
+        "мощность", "fuel type"]
     assert tc.missing_ru(None) == []
+
+
+def test_missing_ru_merges_synonyms_into_concepts():
+    got = tc.missing_ru(["назначение", "материал", "Область применения", "Материал изготовления",
+                         "точное назначение"])
+    assert got == ["назначение", "материал"], "две настоящие дыры, а не пять строк"
+
+
+def test_clean_description_drops_enrichment_placeholders():
+    d = ("Назначение: не указано\nОбласть применения: не указано\n"
+         "Материал изготовления: уточняется\n"
+         "Технические параметры: мощность 20 Вт, тип тока: не указано, напряжение AC220V, IP66")
+    assert tc.clean_description(d) == "Технические параметры: мощность 20 Вт, напряжение AC220V, IP66"
+    assert tc.clean_description("Назначение: уличный светильник\nМатериал изготовления: алюминий") == \
+        "Назначение: уличный светильник\nМатериал изготовления: алюминий"
+    assert tc.clean_description(None) == ""
+
+
+def test_path_title_prefers_official_eec_path():
+    conn = sqlite3.connect(":memory:")
+    conn.executescript("""
+        CREATE TABLE tnved_tree (code TEXT PRIMARY KEY, parent_code TEXT, level INTEGER, title TEXT);
+        INSERT INTO tnved_tree VALUES ('9405420039','940542003',10,'прочие'),
+            ('940542003','940542003',9,'для освещения открытых общественных мест:');
+        CREATE TABLE tnved_subheading_titles (prefix TEXT PRIMARY KEY, title TEXT);
+    """)
+    assert tc._path_title(conn, "9405420039") == "для освещения открытых общественных мест"
+    conn.executescript("""
+        CREATE TABLE tnved_official_paths (code TEXT PRIMARY KEY, name TEXT, path TEXT);
+        INSERT INTO tnved_official_paths VALUES ('9405420039','прочие','прочие / из прочих материалов'),
+            ('0409000000','Мед натуральный','');
+    """)
+    assert tc._path_title(conn, "9405420039") == "прочие / из прочих материалов"
+    assert tc._path_title(conn, "0409000000") == "", "пустой официальный путь — тоже ответ"

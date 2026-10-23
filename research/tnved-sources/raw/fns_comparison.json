@@ -1,0 +1,65 @@
+[
+ {
+  "level": 10,
+  "fns": 13293,
+  "mine": 13294,
+  "common": 13292,
+  "only_fns": [
+   "8112924100"
+  ],
+  "only_mine": [
+   "8112924101",
+   "8112924109"
+  ],
+  "n_only_fns": 1,
+  "n_only_mine": 2,
+  "same": 12980,
+  "near": 287,
+  "diff": 25,
+  "diff_codes": [
+   "2710192900",
+   "1006309400",
+   "1006209800",
+   "9403609001",
+   "0813503100",
+   "2710201100"
+  ]
+ },
+ {
+  "level": 4,
+  "fns": 957,
+  "mine": 1228,
+  "common": 957,
+  "only_fns": [],
+  "only_mine": [
+   "0205",
+   "0409",
+   "0501",
+   "0504",
+   "0508",
+   "0510"
+  ],
+  "n_only_fns": 0,
+  "n_only_mine": 271,
+  "same": 957,
+  "near": 0,
+  "diff": 0,
+  "diff_codes": []
+ },
+ {
+  "level": 2,
+  "fns": 96,
+  "mine": 96,
+  "common": 96,
+  "only_fns": [],
+  "only_mine": [],
+  "n_only_fns": 0,
+  "n_only_mine": 0,
+  "same": 91,
+  "near": 4,
+  "diff": 1,
+  "diff_codes": [
+   "24"
+  ]
+ }
+]

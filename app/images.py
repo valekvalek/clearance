@@ -170,7 +170,9 @@ def read_source_images(data: bytes):
     out = []
     try:
         wb = openpyxl.load_workbook(io.BytesIO(data))  # НЕ read_only — нужны картинки
-        for ws in wb.worksheets:
+        # скрытые листы не читаются как товары (readers._visible) — и фото с них не берём
+        shown = [ws for ws in wb.worksheets if ws.sheet_state == "visible"] or wb.worksheets
+        for ws in shown:
             for img in getattr(ws, "_images", []):
                 try:
                     out.append({"sheet": ws.title,
@@ -183,13 +185,23 @@ def read_source_images(data: bytes):
     return {"anchored": out}
 
 
-def _map_excel_images(items, data):
-    """Сопоставление картинок Excel (xlsx/xls) с товарами по строке-якорю."""
+def _map_excel_images(items, data, by_order=True):
+    """Сопоставление картинок Excel (xlsx/xls) с товарами по строке-якорю.
+    by_order=False — без запасного сопоставления по порядку (вызов для одного товара)."""
     try:
         info = read_source_images(data)
     except Exception:
         return
     imgs = info.get("anchored", [])
+    img_sheets = {(im["sheet"] or "").strip().lower() for im in imgs}
+
+    def sheet_of(it):
+        # имя листа из ответа ИИ приходит обрезанным (extract.py: .strip()), а в книге
+        # бывает с пробелом в конце («packing list ») — сравниваем без пробелов/регистра.
+        # Имя, которого среди листов с фото нет (ИИ ошибся/перевёл), — не фильтр.
+        sh = (it.get("src_sheet") or "").strip().lower()
+        return sh if sh in img_sheets else ""
+
     # сортируем товары по качеству лучшего совпадения (сначала те, у кого есть
     # точное/близкое совпадение) — иначе при жадном проходе "по порядку товаров"
     # более далёкий товар может забрать себе картинку, которая по расстоянию
@@ -197,12 +209,12 @@ def _map_excel_images(items, data):
     candidates = []
     for it in items:
         r = it.get("src_row") or 0
-        sh = it.get("src_sheet") or ""
+        sh = sheet_of(it)
         best, bestd = None, 99
         for im in imgs:
             if im.get("_used"):
                 continue
-            if sh and im["sheet"] and im["sheet"] != sh:
+            if sh and im["sheet"] and im["sheet"].strip().lower() != sh:
                 continue
             d = abs(im["row"] - r)
             if d < bestd:
@@ -214,6 +226,23 @@ def _map_excel_images(items, data):
             continue  # картинку уже забрал товар с более точным совпадением
         it["src_image"] = im["data"]
         im["_used"] = True
+    # фото есть в файле, но далеко от строки товара (сдвиг якоря, объединённые
+    # ячейки) — если на листе непривязанных фото столько же, сколько товаров без
+    # фото, сопоставляем по порядку сверху вниз: фото из файла лучше поиска в интернете
+    by_sheet: dict[str, list] = {}
+    for it in items:
+        if by_order and not it.get("src_image"):
+            by_sheet.setdefault(sheet_of(it), []).append(it)
+    for sh, rest in by_sheet.items():
+        if not sh and len(img_sheets) > 1:
+            continue  # лист товара неизвестен, а фото на разных листах — не гадаем
+        free = sorted((im for im in imgs if not im.get("_used")
+                       and (not sh or (im["sheet"] or "").strip().lower() == sh)),
+                      key=lambda im: (im["sheet"], im["row"]))
+        if free and len(free) == len(rest):
+            for it, im in zip(sorted(rest, key=lambda it: it.get("src_row") or 0), free):
+                it["src_image"] = im["data"]
+                im["_used"] = True
     # без якорей — по порядку при точном равенстве количества
     if "ordered" in info:
         blobs = info["ordered"]
@@ -317,7 +346,7 @@ def _map_alt_images(items, datas):
                 if data[:5] == b"%PDF-":
                     _map_pdf_images([fake], data)
                 else:
-                    _map_excel_images([fake], data)
+                    _map_excel_images([fake], data, by_order=False)
             except Exception:
                 continue
             if fake.get("src_image"):

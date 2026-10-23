@@ -141,3 +141,42 @@ def test_single_run_makes_one_call(monkeypatch):
     monkeypatch.setattr(v2, "_chat_json", lambda *a, **k: calls.append(1) or {"heading": "8536"})
     r = v2._vote("s", "u", "heading", {"8536"}, CFG)
     assert CFG["votes"]["runs"] == 1 and len(calls) == 1 and r["answer"] == "8536"
+
+
+def test_duplicate_missing_names_do_not_force_refusal(monkeypatch):
+    """Один пробел, названный на трёх шагах по-разному, считается один раз (было: отказ)."""
+    path = _fixture(monkeypatch)
+    H.build(path)
+
+    def fake_chat(messages, **kw):
+        sp = messages[0]["content"]
+        if "помогаешь таможенному брокеру" in sp:
+            return json.dumps([{"id": 0, "what": "светильник", "missing_attributes": ["назначение", "материал"], "heading_hints": ["9405"]}])
+        if "Товарная позиция уже выбрана" in sp:
+            return json.dumps({"code": "9405420012", "rule_ref": "ОПИ 1", "reason": "x",
+                               "missing_attributes": ["Материал изготовления", "точное назначение"]})
+        return json.dumps({"heading": "9405", "rule_ref": "ОПИ 1", "reason": "x", "missing_attributes": ["Область применения"]})
+
+    monkeypatch.setattr(gemini, "chat", fake_chat)
+    monkeypatch.setattr(gemini, "API_KEY", "test")
+    res = tc.classify_batch([{"product_name": "светодиодные светильники"}], pipeline="v2",
+                            use_synonyms=False, use_cache=False)[0]
+    assert res["missing_attributes"] == ["назначение", "материал"]
+    assert res["signals"]["missing"] == 2
+    assert res["code"] == "9405420012", res["reason"]
+
+
+def test_heading_search_maps_household_words_to_tnved_terms():
+    from tnved import headings as H
+    terms = H._query_terms("Катушка припоя, разъём IP68")
+    assert "пайк" in terms and "соединител" in terms
+    assert "пайк" not in H._query_terms("Контроллер для светодиодов")
+    assert "схем" in H._query_terms("Печатная плата в сборе") and "схем" in H._query_terms("PCB")
+    assert "схем" not in H._query_terms("Платье женское")
+
+
+def test_weak_precedents_are_dropped():
+    prec = [{"name": "Разъем соединительный подводный", "code": "8536699008", "n": 6, "sim": 0.12},
+            {"name": "разъемы 5-пиновые (папа)", "code": "8536699008", "n": 1, "sim": 0.5}]
+    lim = C.load_config()["limits"]
+    assert [p["sim"] for p in v2._relevant_precedents(prec, lim)] == [0.5]

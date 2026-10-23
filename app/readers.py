@@ -51,7 +51,7 @@ def read_sheets(data: bytes):
         return _read_xls(data)
     sheets = []
     wb = openpyxl.load_workbook(io.BytesIO(data), data_only=True, read_only=True)
-    for ws in wb.worksheets:
+    for ws in _visible(wb.worksheets, lambda ws: ws.sheet_state == "visible"):
         sh = {"name": ws.title}
         sh["grid"] = _grid_from_rows(ws.iter_rows(values_only=True), sh)
         sheets.append(sh)
@@ -59,11 +59,19 @@ def read_sheets(data: bytes):
     return sheets
 
 
+def _visible(sheets, is_visible):
+    """Скрытые листы — служебные (напр. спрятанная китайская экспортная декларация
+    报关单 рядом с пакинг-листом): пользователь их не видит, и товары из них
+    подменяли бы товары видимого листа. Если скрыты все листы — читаем все."""
+    shown = [s for s in sheets if is_visible(s)]
+    return shown or list(sheets)
+
+
 def _read_xls(data: bytes):
     import xlrd
     wb = xlrd.open_workbook(file_contents=data)
     sheets = []
-    for sh in wb.sheets():
+    for sh in _visible(wb.sheets(), lambda sh: sh.visibility == 0):
         rows = ([sh.cell_value(r, c) for c in range(sh.ncols)] for r in range(sh.nrows))
         info = {"name": sh.name}
         info["grid"] = _grid_from_rows(rows, info)
