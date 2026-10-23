@@ -3,8 +3,9 @@
 
 Шаг 1. FTS5-поиск по app/tnved.db (встроенная токенизация unicode61 —
         регистронезависимый поиск, снятие диакритики) -> топ-15 кандидатов.
-Шаг 2. LLM (ai_client, тот же провайдер, что и остальной проект) выбирает
-        РОВНО ОДИН код из списка кандидатов или отвечает "не определён".
+Шаг 2. LLM (classify_ai — ОТДЕЛЬНЫЙ от ai_client диспетчер, всегда Yandex,
+        см. classify_ai.py) выбирает РОВНО ОДИН код из списка кандидатов или
+        отвечает "не определён".
 Шаг 3. Валидация: выбранный код должен существовать в tnved_codes. Если нет —
         код не принимается, needs_review=true, confidence=low.
 Угадывать код при отсутствии кандидатов или ответе "не определён" запрещено —
@@ -20,7 +21,7 @@ import re
 import sqlite3
 import threading
 
-import ai_client
+import classify_ai as ai_client
 
 logger = logging.getLogger("tnved_classifier")
 

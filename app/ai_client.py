@@ -1,10 +1,17 @@
 """
 Выбор провайдера ИИ через env AI_PROVIDER ("yandex" — основной, по умолчанию;
-"gemini" — резервный, на случай отката без правки кода). Остальной код
-(extract.py/enrich.py/jobs.py) обращается только сюда (ai_client.chat,
-ai_client.API_KEY...), не импортируя yandex.py/gemini.py напрямую — чтобы
-переключение провайдера было одной переменной окружения, а не правкой трёх
-файлов.
+"gemini"/"kimi" — альтернативы). Управляет извлечением/обогащением
+(extract.py/enrich.py) — т.е. парсингом инвойсов, переводом, описанием,
+поиском материала/фото. Остальной код обращается только сюда (ai_client.chat,
+ai_client.API_KEY...), не импортируя yandex.py/gemini.py/kimi.py напрямую —
+чтобы переключение провайдера было одной переменной окружения, а не правкой
+нескольких файлов.
+
+Классификация ТН ВЭД (tnved_classifier.py/tnved/v2.py) через ЭТОТ модуль НЕ
+идёт — у неё отдельный диспетчер classify_ai.py, который по умолчанию всегда
+на Yandex, независимо от AI_PROVIDER здесь (решение 2026-10-23: даже если
+обогащение переключено на Kimi, подбор кода ТН ВЭД остаётся на откалиброванном
+Yandex). См. classify_ai.py.
 
 ВАЖНО: атрибуты (chat, chat_vision, search, extract_json, API_KEY, MODEL)
 переадресуются на модуль-провайдер через __getattr__ (PEP 562), а НЕ
@@ -19,6 +26,8 @@ _PROVIDER = os.getenv("AI_PROVIDER", "yandex").strip().lower()
 
 if _PROVIDER == "gemini":
     import gemini as _impl
+elif _PROVIDER == "kimi":
+    import kimi as _impl
 else:
     import yandex as _impl
 

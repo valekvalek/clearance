@@ -35,6 +35,12 @@ os.environ.pop("ADMIN_RESET_TOKEN", None)
 # настоящий Yandex API. setdefault — у пользователя/CI эта переменная не
 # выставлена, так что на прод/реальный запуск это не влияет.
 os.environ.setdefault("AI_PROVIDER", "gemini")
+# classify_ai.py (см. app/classify_ai.py) — ОТДЕЛЬНЫЙ от ai_client диспетчер
+# для классификации ТН ВЭД, по умолчанию всегда yandex независимо от
+# AI_PROVIDER. Тестам классификатора (tnved_classifier.py/tnved/v2.py) нужен
+# тот же фейковый gemini.chat, что и остальным тестам — иначе эта
+# классификация пыталась бы стучаться в настоящий Yandex API.
+os.environ.setdefault("CLASSIFY_AI_PROVIDER", "gemini")
 
 if APP_DIR not in sys.path:
     sys.path.insert(0, APP_DIR)

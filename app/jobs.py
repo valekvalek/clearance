@@ -19,6 +19,7 @@ import export
 import currency
 import activity
 import ai_client
+import classify_ai
 import tnved_classifier
 from report import Report
 
@@ -261,6 +262,11 @@ def run_job(job_id, datas, names, filename, do_sourcing=False, web_search=True, 
             set_job(job_id, status="error",
                     message=f"Не задан ключ ИИ для провайдера {ai_client.PROVIDER} "
                             f"— обратитесь к администратору сервиса")
+            return
+        if not classify_ai.API_KEY:
+            set_job(job_id, status="error",
+                    message=f"Не задан ключ ИИ для классификации ТН ВЭД (провайдер "
+                            f"{classify_ai.PROVIDER}) — обратитесь к администратору сервиса")
             return
         set_job(job_id, status="parsing", message="Читаю файлы и распознаю товары...")
         items = extract.extract_all(datas, report=report, names=names)
