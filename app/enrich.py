@@ -270,9 +270,17 @@ def _fetch_web_photos(items, workers=4):
     return found
 
 
-def _enrich_one_batch(batch, batch_search, ctx_block=""):
-    """Переводит/обогащает товары батча на месте. -> множество индексов, которые ИИ заполнил."""
-    filled = set()
+# Moonshot обрывает соединение у запросов больше ~11 000 байт (проверено: до 11 028 проходят,
+# от 11 510 — "Remote end closed connection"); системный промпт Кими сам занимает ~7900 байт.
+# Бюджет с запасом: больший батч делится пополам, сбой у батча — тоже деление.
+_KIMI_MAX_REQUEST_BYTES = 10000
+
+
+def _limited() -> bool:
+    return getattr(ai_client, "PROVIDER", "") == "kimi"
+
+
+def _batch_messages(batch, batch_search, ctx_block=""):
     payload_lines = []
     for i, (it, sr) in enumerate(zip(batch, batch_search), 1):
         res_txt = "\n".join(
@@ -289,11 +297,36 @@ def _enrich_one_batch(batch, batch_search, ctx_block=""):
             f"  сводка поиска: {ans}\n"
             f"  результаты поиска:\n{res_txt}"
         )
-    messages = [
+    return [
         {"role": "system", "content": _enrich_system()},
         {"role": "user", "content": ctx_block + "Обработай товары:\n\n"
                                     + "\n\n".join(payload_lines)},
     ]
+
+
+def _enrich_adaptive(batch, batch_search, ctx_block=""):
+    """_enrich_one_batch с учётом лимита размера запроса Кими. -> множество заполненных индексов."""
+    if _limited() and len(batch) > 1:
+        size = sum(len(m["content"].encode("utf-8")) for m in _batch_messages(batch, batch_search, ctx_block))
+        if size > _KIMI_MAX_REQUEST_BYTES:
+            return _split_enrich(batch, batch_search, ctx_block)
+    filled = _enrich_one_batch(batch, batch_search, ctx_block)
+    if not filled and len(batch) > 1:  # сбой всего батча (в т.ч. из-за размера) — пробуем половинками
+        return _split_enrich(batch, batch_search, ctx_block)
+    return filled
+
+
+def _split_enrich(batch, batch_search, ctx_block):
+    mid = len(batch) // 2
+    filled = set(_enrich_adaptive(batch[:mid], batch_search[:mid], ctx_block))
+    filled |= {mid + i for i in _enrich_adaptive(batch[mid:], batch_search[mid:], ctx_block)}
+    return filled
+
+
+def _enrich_one_batch(batch, batch_search, ctx_block=""):
+    """Переводит/обогащает товары батча на месте. -> множество индексов, которые ИИ заполнил."""
+    filled = set()
+    messages = _batch_messages(batch, batch_search, ctx_block)
     try:
         # быстрый провал: короче таймаут и меньше повторов, чтобы не подвешивать всё
         resp = ai_client.chat(messages, temperature=0.2, max_tokens=8000,
@@ -352,11 +385,14 @@ def enrich_items(items, progress=None, batch_size=10,
                  invoice_context="", report=None):
     total = len(items)
     # контекст инвойса: шапка документа + полный список товаров (тематика)
-    all_names = "; ".join((it.get("name_original") or "")[:45] for it in items[:50])
+    # у Кими лимит размера запроса (_KIMI_MAX_REQUEST_BYTES): контекст короче, иначе на настоящем
+    # инвойсе в запрос не помещается ни один товар
+    ctx_names, ctx_len, ctx_head = (6, 30, 200) if _limited() else (50, 45, 1500)
+    all_names = "; ".join((it.get("name_original") or "")[:ctx_len] for it in items[:ctx_names])
     ctx_block = ""
     if invoice_context or all_names:
         ctx_block = ("КОНТЕКСТ ИНВОЙСА (шапка документа):\n"
-                     + (invoice_context or "(нет)")[:1500]
+                     + (invoice_context or "(нет)")[:ctx_head]
                      + f"\n\nВСЕ ТОВАРЫ ЭТОГО ИНВОЙСА: {all_names}\n\n")
     # 1) поиск по товарам (с ДЕДУПЛИКАЦИЕЙ — одинаковые запросы ищем 1 раз)
     if web_search:
@@ -398,11 +434,11 @@ def enrich_items(items, progress=None, batch_size=10,
 
     def run(batch):
         start, b_items, b_search = batch
-        filled = _enrich_one_batch(b_items, b_search, ctx_block)
+        filled = _enrich_adaptive(b_items, b_search, ctx_block)
         missing = [i for i in range(len(b_items)) if i not in filled]
         if missing:  # один повтор — только для незаполненных товаров
-            again = _enrich_one_batch([b_items[i] for i in missing],
-                                      [b_search[i] for i in missing], ctx_block)
+            again = _enrich_adaptive([b_items[i] for i in missing],
+                                     [b_search[i] for i in missing], ctx_block)
             missing = [m for j, m in enumerate(missing) if j not in again]
         with lock:
             untranslated.extend(start + i + 1 for i in missing)

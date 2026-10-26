@@ -302,8 +302,10 @@ def _classify_one(item: dict, attrs: dict | None, cfg: dict) -> dict:
                "score": conf["score"], "confidence": conf["level"], "signals": signals,
                "votes": {"heading": hv["counts"], "code": lv["counts"]}}
         if conf["abstain"]:
-            out.update(code="", description="", confidence="low", needs_review=True,
-                       reason=f"отказ: мало данных/уверенности (score={conf['score']}); " + reason)
+            # код не обнуляем: предположение с пометкой «проверить» полезнее пустой ячейки
+            # (на holdout 5,5% товаров получали верный код, который уходил в отказ)
+            out.update(code=code, confidence="low", needs_review=True, abstained=True,
+                       reason=f"низкая уверенность (score={conf['score']}), проверьте код; " + reason)
         else:
             out.update(code=code, needs_review=conf["level"] != "high")
         return out

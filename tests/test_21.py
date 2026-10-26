@@ -83,8 +83,9 @@ check(f"батч, где ИИ «потерял» 2 товара, дозапол�
       all(r["name_ru"].startswith("RU ") for r in rows[:10]))
 bad = [i + 1 for i, r in enumerate(rows) if not r["name_ru"].startswith("RU ")]
 wtr = [w for w in pv["warnings"] if "без перевода" in w]
-check(f"без перевода {len(bad)} товаров № {bad[0]}–{bad[-1]}, предупреждение их называет: {wtr}",
-      len(bad) == 10 and wtr and f"№ {bad[0]}–{bad[-1]}" in wtr[0])
+check(f"без перевода {len(bad)} товар(ов) № {bad[0]}–{bad[-1]}, предупреждение называет их: {wtr}",
+      # батч с «ядовитым» item150 делится пополам, без перевода остаётся только он сам
+      len(bad) == 1 and wtr and f"№ {bad[0]})" in wtr[0])
 check("предупреждения те же и в предпросмотре", pv["warnings"] == st["warnings"])
 res = c.get(f"/api/result/{jid}")
 wb = openpyxl.load_workbook(io.BytesIO(res.content))

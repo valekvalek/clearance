@@ -6,7 +6,10 @@
              (название -> ровно один код; совпавшие с seed-синонимами исключаются).
   prepare  — для каждой конфигурации делает копию app/tnved.db, из которой вырезаны все названия
              holdout (эталонная база, синонимы, артикулы), и подмешивает нужные источники.
-  run <cfg> — прогон классификатора (Yandex, без кэша) на holdout; метрики в JSON.
+  enrich   — обогащает holdout Кими (как в приложении, без веб-поиска): name_ru, материал,
+             описание -> <work>/holdout_enriched.csv (платно: Moonshot; --limit для пробы).
+  run <cfg> — прогон классификатора (Yandex, без кэша) на holdout; метрики в JSON
+             (--enriched: брать обогащённый holdout, результат cfg + "_enr").
   report   — сводная таблица по готовым JSON.
 
 Каталог результатов и копий БД: --work (по умолчанию training/eval_work, не коммитится).
@@ -122,19 +125,48 @@ def prepare(work):
         print(f"  {cfg}: строк в tnved_reference {len(rows)}")
 
 
-def run(cfg, work, limit):
-    pipeline, synonyms, _ = CONFIGS[cfg]
-    os.environ["TNVED_DB_PATH"] = os.path.join(work, "db", cfg + ".db")
-    from tnved import evaluate as E
+def enrich(work, limit):
+    os.environ["AI_PROVIDER"] = "kimi"
+    import enrich as en
     rows = list(csv.DictReader(open(HOLDOUT, encoding="utf-8")))
     if limit:
         rows = rows[:limit]
+    items = [{"name_original": r["name"], "brand": r["brand"], "article": r["article"],
+              "spec": "; ".join(x for x in (r["description"], r["material"]) if x), "_row": r} for r in rows]
+    # Moonshot обрывает запросы длиннее ~6000 символов (системный промпт уже ~4500), а
+    # enrich_items кладёт в контекст названия до 50 товаров, поэтому идём порциями по 3
+    from concurrent.futures import ThreadPoolExecutor
+    chunks = [items[i:i + 3] for i in range(0, len(items), 3)]
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        list(ex.map(lambda c: en.enrich_items(c, web_search=False, batch_size=3, batch_workers=1), chunks))
+    out = os.path.join(work, "holdout_enriched.csv")
+    with open(out, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, FIELDS)
+        w.writeheader()
+        for it in items:
+            r = it["_row"]
+            w.writerow({**r, "name": it.get("name_ru") or r["name"], "description": it.get("description") or "",
+                        "material": "" if it.get("material") == "уточняется" else it.get("material") or "",
+                        "brand": it.get("brand") or r["brand"]})
+    print(f"обогащено {sum(1 for i in items if i.get('name_ru'))}/{len(items)} -> {out}")
+    import kimi
+    print("токены Кими:", dict(kimi._TOKENS_TOTAL))
+
+
+def run(cfg, work, limit, enriched=False):
+    pipeline, synonyms, _ = CONFIGS[cfg]
+    os.environ["TNVED_DB_PATH"] = os.path.join(work, "db", cfg + ".db")
+    from tnved import evaluate as E
+    rows = list(csv.DictReader(open(os.path.join(work, "holdout_enriched.csv") if enriched else HOLDOUT,
+                                    encoding="utf-8")))
+    if limit:
+        rows = rows[:limit]
     m = E.evaluate(rows, use_cache=False, use_synonyms=synonyms, pipeline=pipeline)
-    m["config"] = cfg
+    m["config"] = cfg + ("_enr" if enriched else "")
     m["expected"] = {r["name"]: r["expected_code"].strip() for r in rows}
     m["sources"] = {r["name"]: r["status"] for r in rows}
     os.makedirs(os.path.join(work, "results"), exist_ok=True)
-    out = os.path.join(work, "results", cfg + ".json")
+    out = os.path.join(work, "results", cfg + ("_enr" if enriched else "") + ".json")
     json.dump(m, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
     print(cfg, "готово ->", out)
 
@@ -154,7 +186,7 @@ def _stats(m, only=None):
 
 def report(work):
     print(f"{'конфигурация':20} {'всего':>5} {'ответ':>6} {'код 10 зн.':>16} {'позиция 4 зн.':>16} {'автоответ базы':>20}")
-    for cfg in CONFIGS:
+    for cfg in [c + sfx for c in CONFIGS for sfx in ("", "_enr")]:
         p = os.path.join(work, "results", cfg + ".json")
         if not os.path.exists(p):
             continue
@@ -169,18 +201,21 @@ def report(work):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("cmd", choices=["build", "prepare", "run", "report"])
+    ap.add_argument("cmd", choices=["build", "prepare", "enrich", "run", "report"])
     ap.add_argument("cfg", nargs="?")
     ap.add_argument("--n", type=int, default=400)
     ap.add_argument("--seed", type=int, default=20261026)
     ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--enriched", action="store_true")
     ap.add_argument("--work", default=os.path.join(ROOT, "training", "eval_work"))
     a = ap.parse_args()
     if a.cmd == "build":
         build(a.n, a.seed)
     elif a.cmd == "prepare":
         prepare(a.work)
+    elif a.cmd == "enrich":
+        enrich(a.work, a.limit)
     elif a.cmd == "run":
-        run(a.cfg, a.work, a.limit)
+        run(a.cfg, a.work, a.limit, a.enriched)
     else:
         report(a.work)
