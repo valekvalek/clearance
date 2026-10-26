@@ -35,6 +35,26 @@ KIMI_MAX_CONCURRENT = max(1, int(os.getenv("KIMI_MAX_CONCURRENT", "10")))
 _KIMI_SEM = threading.Semaphore(KIMI_MAX_CONCURRENT)
 
 
+_TOKENS_TOTAL = {"prompt": 0, "completion": 0, "total": 0, "calls": 0}
+_TOKENS_LOCK = threading.Lock()
+
+
+def _log_usage(d: dict, model: str):
+    u = d.get("usage") or {}
+    prompt = u.get("prompt_tokens", 0) or 0
+    completion = u.get("completion_tokens", 0) or 0
+    total = u.get("total_tokens") or (prompt + completion)
+    with _TOKENS_LOCK:
+        _TOKENS_TOTAL["prompt"] += prompt
+        _TOKENS_TOTAL["completion"] += completion
+        _TOKENS_TOTAL["total"] += total
+        _TOKENS_TOTAL["calls"] += 1
+        running = dict(_TOKENS_TOTAL)
+    logger.info("Kimi %s: токены — запрос %s / ответ %s / всего %s "
+                "(с начала процесса: %s вызовов, %s токенов суммарно)",
+                model, prompt, completion, total, running["calls"], running["total"])
+
+
 def _post(payload: dict, timeout: int = 180) -> dict:
     if not API_KEY:
         raise RuntimeError("Не задан MOONSHOT_API_KEY — укажите свой ключ Kimi API в переменных окружения")
@@ -117,6 +137,7 @@ def _request(model: str, payload: dict, timeout: int, max_retries: int, err_pref
                     last_err = d["error"]
                     time.sleep(2)
                     continue
+                _log_usage(d, model_name)
                 return d
             except urllib.error.HTTPError as e:
                 last_err = f"HTTP {e.code}: {e.read().decode('utf-8')[:200]}"

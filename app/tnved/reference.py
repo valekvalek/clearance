@@ -19,11 +19,17 @@
   medium — не ниже порогов medium: код ставится, но товар отмечается «проверить код»;
   иначе  — база кода не даёт; соседи уходят моделью как прецеденты (tnved/v2.py).
 
+Записи из прочих источников (source='fsa' — декларации соответствия, коды заявителей)
+дают соседей-прецедентов для модели, но уровень high/medium не поднимают: код без обращения
+к модели ставится только по записям source 'reference' и 'golden'.
+
 Импорт:       python -m tnved.reference [--csv путь]        (пересоздаёт tnved_reference)
+              python -m tnved.reference --with-extra        (+ золотая база и ФСА, кроме holdout)
 Калибровка:   python -m tnved.reference --calibrate         (leave-one-name-out, без модели)
 """
 import argparse
 import csv
+import json
 import math
 import os
 import re
@@ -38,7 +44,13 @@ if APP_DIR not in sys.path:
 
 import tnved_classifier as tc  # noqa: E402
 
-DEFAULT_CSV = os.path.join(os.path.dirname(APP_DIR), "tests", "golden_tnved", "reference_examples.csv")
+ROOT = os.path.dirname(APP_DIR)
+GOLDEN_DIR = os.path.join(ROOT, "tests", "golden_tnved")
+DEFAULT_CSV = os.path.join(GOLDEN_DIR, "reference_examples.csv")
+GOLDEN_CSV = os.path.join(GOLDEN_DIR, "golden_tnved.csv")
+HOLDOUT_CSV = os.path.join(GOLDEN_DIR, "golden_tnved_holdout.csv")
+FSA_JSONL = os.path.join(ROOT, "training", "fsa", "fsa_train_candidates.jsonl")
+TRUSTED_SOURCES = ("reference", "golden")
 W_NAME, W_DESC, W_MAT = 0.6, 0.25, 0.15
 K_NEIGHBORS = 12
 MIN_NAME_SIM = 0.2
@@ -51,7 +63,8 @@ CREATE TABLE tnved_reference (
     material TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     brand TEXT NOT NULL DEFAULT '',
-    code TEXT NOT NULL
+    code TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'reference'
 );
 CREATE INDEX idx_tnved_reference_code ON tnved_reference(code);
 """
@@ -98,7 +111,34 @@ def ensure(conn) -> bool:
         return False
 
 
-def import_csv(csv_path: str = DEFAULT_CSV, db_path: str | None = None) -> int:
+def _extra_rows():
+    """Золотая база (подтверждённые, без holdout) и ФСА (один код) — строки (name, material,
+    description, brand, code, source)."""
+    held = set()
+    if os.path.exists(HOLDOUT_CSV):
+        with open(HOLDOUT_CSV, encoding="utf-8", newline="") as f:
+            held = {tc.normalize(r["name"]) for r in csv.DictReader(f)}
+    rows = []
+    if os.path.exists(GOLDEN_CSV):
+        with open(GOLDEN_CSV, encoding="utf-8", newline="") as f:
+            for r in csv.DictReader(f):
+                code, name = (r.get("expected_code") or "").strip(), (r.get("name") or "").strip()
+                if (r.get("status") or "").strip() == "подтверждён" and name and code.isdigit() \
+                        and len(code) == 10 and tc.normalize(name) not in held:
+                    rows.append((name, (r.get("material") or "").strip(), (r.get("description") or "").strip(),
+                                 (r.get("brand") or "").strip(), code, "golden"))
+    if os.path.exists(FSA_JSONL):
+        with open(FSA_JSONL, encoding="utf-8") as f:
+            for line in f:
+                r = json.loads(line)
+                code, name = ((r.get("tnved_codes") or [""])[0] or "").strip(), (r.get("name") or "").strip()
+                if name and code.isdigit() and len(code) == 10 and tc.normalize(name) not in held:
+                    rows.append((name, "", (r.get("description") or "").strip(),
+                                 (r.get("trade_mark") or "").strip(), code, "fsa"))
+    return rows
+
+
+def import_csv(csv_path: str = DEFAULT_CSV, db_path: str | None = None, with_extra: bool = False) -> int:
     """Пересоздаёт tnved_reference из CSV. Берутся все строки с названием и 10-значным кодом."""
     rows = []
     with open(csv_path, encoding="utf-8-sig", newline="") as f:
@@ -106,12 +146,14 @@ def import_csv(csv_path: str = DEFAULT_CSV, db_path: str | None = None) -> int:
             name, code = (r.get("Наименование") or "").strip(), (r.get("Код ТНВЭД") or "").strip()
             if name and code.isdigit() and len(code) == 10:
                 rows.append((name, (r.get("Материал") or "").strip(), (r.get("Описание") or "").strip(),
-                             (r.get("Торговая марка") or "").strip(), code))
+                             (r.get("Торговая марка") or "").strip(), code, "reference"))
+    if with_extra:
+        rows += _extra_rows()
     conn = sqlite3.connect(db_path or tc.DB_PATH)
     try:
         conn.executescript(_SCHEMA)
-        conn.executemany("INSERT INTO tnved_reference(name, material, description, brand, code) "
-                         "VALUES (?,?,?,?,?)", rows)
+        conn.executemany("INSERT INTO tnved_reference(name, material, description, brand, code, source) "
+                         "VALUES (?,?,?,?,?,?)", rows)
         conn.commit()
     finally:
         conn.close()
@@ -123,14 +165,16 @@ class Index:
 
     def __init__(self, rows):
         groups: dict = {}
-        for name, material, description, code in rows:
-            key = (tokens(name), tokens(description, True), tokens(material), code)
+        for row in rows:
+            name, material, description, code = row[:4]
+            trusted = (row[4] if len(row) > 4 else "reference") in TRUSTED_SOURCES
+            key = (tokens(name), tokens(description, True), tokens(material), code, trusted)
             g = groups.get(key)
             if g:
                 g["n"] += 1
             else:
                 groups[key] = {"name": name, "name_t": key[0], "desc_t": key[1], "mat_t": key[2],
-                               "code": code, "n": 1, "name_key": tc.normalize(name)}
+                               "code": code, "n": 1, "name_key": tc.normalize(name), "trusted": trusted}
         self.entries = [g for g in groups.values() if g["name_t"]]
         df = Counter(t for e in self.entries for t in e["name_t"])
         n = len(self.entries)
@@ -177,11 +221,14 @@ class Index:
             return {"level": "none", "code": "", "neighbors": []}
         votes: dict = defaultdict(float)
         best_sim: dict = {}
+        trusted_sim: dict = defaultdict(float)
         support: dict = defaultdict(int)
         sample: dict = {}
         for sim, e in top:
             votes[e["code"]] += sim * sim * (1 + 0.25 * math.log(e["n"]))
             best_sim[e["code"]] = max(best_sim.get(e["code"], 0.0), sim)
+            if e["trusted"]:
+                trusted_sim[e["code"]] = max(trusted_sim[e["code"]], sim)
             support[e["code"]] += e["n"]
             sample.setdefault(e["code"], e["name"])
         total = sum(votes.values())
@@ -191,7 +238,8 @@ class Index:
                      for c in sorted(votes, key=lambda c: -best_sim[c])[:4]]
         res = {"code": code, "sim": round(best_sim[code], 3), "share": round(share, 3),
                "support": support[code], "neighbors": neighbors}
-        res["level"] = level_for(res["sim"], res["share"], cfg)
+        # уровень high/medium — только если лидирующий код подтверждён эталонной записью
+        res["level"] = level_for(trusted_sim[code], res["share"], cfg)
         return res
 
 
@@ -230,7 +278,11 @@ def index_for(conn) -> "Index | None":
     key = (path, n)
     if key not in _INDEX_CACHE:
         _INDEX_CACHE.clear()
-        _INDEX_CACHE[key] = Index(conn.execute("SELECT name, material, description, code FROM tnved_reference"))
+        try:
+            rows = conn.execute("SELECT name, material, description, code, source FROM tnved_reference").fetchall()
+        except sqlite3.OperationalError:  # таблица старой схемы, без колонки source
+            rows = conn.execute("SELECT name, material, description, code FROM tnved_reference").fetchall()
+        _INDEX_CACHE[key] = Index(rows)
     return _INDEX_CACHE[key]
 
 
@@ -284,8 +336,9 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--csv", default=DEFAULT_CSV)
     ap.add_argument("--calibrate", action="store_true")
+    ap.add_argument("--with-extra", action="store_true", help="добавить золотую базу и ФСА (кроме holdout)")
     args = ap.parse_args()
     if args.calibrate:
         calibrate(args.csv)
     else:
-        print("строк импортировано в tnved_reference:", import_csv(args.csv))
+        print("строк импортировано в tnved_reference:", import_csv(args.csv, with_extra=args.with_extra))

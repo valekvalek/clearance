@@ -73,3 +73,11 @@ def test_reference_training_export_keeps_duplicates_drops_conflicts(tmp_path):
     assert len(ex) == 2, "повторы сохранены, противоречие и строка без кода исключены"
     assert ex[0]["user"] == "Название: Паста\nМатериал: олово", "заглушки не попадают в текст"
     assert ex[0]["response"] == '{"heading": "3810", "code": "3810100000"}'
+
+
+def test_untrusted_source_gives_neighbors_but_not_high():
+    rows = [(n, m, d, c, "fsa") for n, m, d, c in ROWS]
+    r = R.Index(rows).lookup(["Светодиодный уличный светильник ISL-SL07 50W"], "", "алюминий")
+    assert r["code"] == "9405420039" and r["level"] == "low" and r["neighbors"]
+    mixed = R.Index(rows + [("Светодиодный уличный светильник ISL-SL07 50W", "алюминий", "", "9405420039", "golden")])
+    assert mixed.lookup(["Светодиодный уличный светильник ISL-SL07 50W"], "", "алюминий")["level"] == "high"
